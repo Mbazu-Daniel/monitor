@@ -8,22 +8,19 @@ const STEPS = [
     n: "1",
     icon: Camera,
     title: "Submit",
-    desc: "Students and staff snap a photo and file a digital report in under a minute. No paperwork, no phone tag.",
-    chips: ["Photo proof", "Category", "Location"],
+    desc: "Snap a photo and file a digital report in under a minute.",
   },
   {
     n: "2",
     icon: Route,
     title: "Assign",
-    desc: "Administrators route the ticket instantly to the right maintenance officer based on category and workload.",
-    chips: ["Auto-routing", "Priority", "Workload"],
+    desc: "Admins route the ticket to the right maintenance officer.",
   },
   {
     n: "3",
     icon: CheckCircle2,
     title: "Resolve",
-    desc: "Track real-time progress updates until completion. Everyone stays in the loop from report to resolution.",
-    chips: ["Live status", "Comments", "Audit trail"],
+    desc: "Track real-time progress updates until completion.",
   },
 ];
 
@@ -34,7 +31,6 @@ export function LandingHowItWorks() {
         <SectionHeading
           eyebrow="How it works"
           title="From report to resolution in three steps"
-          subtitle="A single accountable workflow that replaces phone calls, paper forms, and WhatsApp threads."
         />
 
         <div className="relative mt-14">
@@ -56,14 +52,6 @@ export function LandingHowItWorks() {
 
                 <h3 className="text-xl font-semibold text-foreground">{s.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
-
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {s.chips.map((chip) => (
-                    <span key={chip} className="inline-flex items-center rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-foreground/70">
-                      {chip}
-                    </span>
-                  ))}
-                </div>
               </li>
             ))}
           </ol>

@@ -22,7 +22,7 @@ export function LandingFooter({ onGetStarted, onTrack }: Props) {
               Ready to fix your campus?
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-cream/75">
-              Join 1,200+ students and staff already using FixCampus. Submit your first request in under a minute.
+              Join 1,200+ students and staff already using FixCampus.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button
@@ -58,8 +58,7 @@ export function LandingFooter({ onGetStarted, onTrack }: Props) {
                 <span className="font-display text-[17px] font-semibold tracking-tight">FixCampus</span>
               </div>
               <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                The digital home for every campus maintenance request. Replacing phone calls, paper forms, and
-                WhatsApp threads with one accountable workflow.
+                The digital home for every campus maintenance request.
               </p>
               <div className="mt-5 space-y-1.5 text-sm text-muted-foreground">
                 <p className="inline-flex items-center gap-1.5"><Mail className="h-4 w-4" /> hello@fixcampus.edu</p>

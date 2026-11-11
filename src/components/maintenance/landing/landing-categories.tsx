@@ -33,7 +33,7 @@ export function LandingCategories({ onPick }: Props) {
         <SectionHeading
           eyebrow="Categories"
           title="What can you report?"
-          subtitle="From a flickering bulb to a leaking hostel pipe, every issue has a home. Pick a category and we route it to the right team."
+          subtitle="From a flickering bulb to a leaking hostel pipe, every issue has a home."
         />
 
         <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">

@@ -7,7 +7,6 @@ import { LandingCategories } from "./landing-categories";
 import { LandingHowItWorks } from "./landing-how-it-works";
 import { LandingRolePreviewer } from "./landing-role-previewer";
 import { LandingTrackDemo } from "./landing-track-demo";
-import { LandingFormDemo } from "./landing-form-demo";
 import { LandingFooter } from "./landing-footer";
 
 interface Props {
@@ -17,13 +16,12 @@ interface Props {
 
 /**
  * Public landing page — marketing surface for FixCampus.
- * Shows feature sections, role previews and interactive demos.
- * "Get Started" / "Submit a Request" CTAs route to the auth view.
+ * Shows what the product does, not the product itself.
+ * The actual request form and tracking live inside the app after sign-in.
  */
 export function LandingPage({ onGetStarted, onTrack }: Props) {
   const handleTrack = () => {
     onTrack();
-    // scroll to the track demo section after layout updates
     setTimeout(() => {
       document.getElementById("track-demo")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 60);
@@ -39,7 +37,6 @@ export function LandingPage({ onGetStarted, onTrack }: Props) {
         <LandingHowItWorks />
         <LandingRolePreviewer onGetStarted={onGetStarted} />
         <LandingTrackDemo />
-        <LandingFormDemo onGetStarted={onGetStarted} />
         <LandingFooter onGetStarted={onGetStarted} onTrack={handleTrack} />
       </main>
     </div>
