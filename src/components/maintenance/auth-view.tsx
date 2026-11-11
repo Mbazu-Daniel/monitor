@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Wrench, Zap, Droplets, Wifi, ClipboardCheck, ShieldCheck, BellRing, Loader2, Eye, EyeOff, GraduationCap } from "lucide-react";
+import { Wrench, Zap, Droplets, Wifi, ClipboardCheck, ShieldCheck, BellRing, Loader2, Eye, EyeOff, GraduationCap, ArrowLeft } from "lucide-react";
 import { api, ApiError } from "@/lib/client";
+import { useAppStore } from "@/stores/app-store";
 import type { SessionUser } from "@/types";
 
 const DEMO_ACCOUNTS = [
@@ -17,7 +18,13 @@ const DEMO_ACCOUNTS = [
   { label: "Admin", email: "admin@university.edu", password: "Admin@123", icon: ShieldCheck },
 ];
 
-export function AuthView({ onAuthed }: { onAuthed: (user: SessionUser) => void }) {
+export function AuthView({ onAuthed, onBackHome }: { onAuthed: (user: SessionUser) => void; onBackHome?: () => void }) {
+  const authInitialTab = useAppStore((s) => s.authInitialTab);
+  const [tab, setTab] = useState<"login" | "register">(authInitialTab);
+
+  // Keep store in sync if user toggles tabs (so a "back to home → re-enter" preserves intent lightly)
+  useEffect(() => { setTab(authInitialTab); }, [authInitialTab]);
+
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       {/* Brand panel */}
@@ -30,13 +37,13 @@ export function AuthView({ onAuthed }: { onAuthed: (user: SessionUser) => void }
               <Wrench className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-lg font-bold leading-tight">FixCampus</p>
+              <p className="font-display text-lg font-bold leading-tight">FixCampus</p>
               <p className="text-sm text-emerald-100/90">Maintenance Service System</p>
             </div>
           </div>
 
           <div className="mt-10 lg:mt-16">
-            <h1 className="max-w-md text-2xl font-bold leading-snug sm:text-3xl lg:text-4xl lg:leading-snug">
+            <h1 className="font-display max-w-md text-2xl font-bold leading-snug sm:text-3xl lg:text-4xl lg:leading-snug">
               Report it once. We track it to the end.
             </h1>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-emerald-50/90 sm:text-base">
@@ -60,9 +67,17 @@ export function AuthView({ onAuthed }: { onAuthed: (user: SessionUser) => void }
           </div>
         </div>
 
-        <div className="relative mt-10 flex items-center gap-6 text-xs text-emerald-100/80 lg:mt-0">
+        <div className="relative mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-emerald-100/80 lg:mt-0">
           <span className="flex items-center gap-1.5"><ClipboardCheck className="h-4 w-4" /> Full audit trail</span>
           <span className="flex items-center gap-1.5"><BellRing className="h-4 w-4" /> Live notifications</span>
+          {onBackHome && (
+            <button
+              onClick={onBackHome}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-emerald-100/90 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to home
+            </button>
+          )}
         </div>
       </div>
 
@@ -70,10 +85,12 @@ export function AuthView({ onAuthed }: { onAuthed: (user: SessionUser) => void }
       <div className="flex flex-1 items-center justify-center bg-muted/40 px-4 py-10 sm:px-8">
         <div className="w-full max-w-md">
           <div className="rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
-            <h2 className="text-xl font-bold">Welcome</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Sign in to submit and track maintenance requests.</p>
+            <h2 className="font-display text-xl font-bold">{tab === "login" ? "Welcome back" : "Create your account"}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {tab === "login" ? "Sign in to submit and track maintenance requests." : "Join FixCampus to start submitting requests in seconds."}
+            </p>
 
-            <Tabs defaultValue="login" className="mt-6">
+            <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "register")} className="mt-6">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Sign In</TabsTrigger>
                 <TabsTrigger value="register">Register</TabsTrigger>
@@ -86,6 +103,15 @@ export function AuthView({ onAuthed }: { onAuthed: (user: SessionUser) => void }
               </TabsContent>
             </Tabs>
           </div>
+
+          {/* Back to home (mobile-friendly) */}
+          {onBackHome && (
+            <div className="mt-4 text-center">
+              <Button variant="ghost" size="sm" onClick={onBackHome} className="text-muted-foreground">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to home
+              </Button>
+            </div>
+          )}
 
           {/* Demo accounts */}
           <div className="mt-4 rounded-2xl border border-dashed bg-card/70 p-4">
@@ -107,6 +133,7 @@ export function AuthView({ onAuthed }: { onAuthed: (user: SessionUser) => void }
                     const pwdInput = document.getElementById("login-password") as HTMLInputElement | null;
                     setNativeValue(emailInput, d.email);
                     setNativeValue(pwdInput, d.password);
+                    setTab("login");
                   }}
                   className="flex flex-col items-center gap-1.5 rounded-lg border bg-background px-2 py-2.5 text-xs font-medium transition-colors hover:border-emerald-400 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40"
                 >

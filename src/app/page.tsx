@@ -15,11 +15,12 @@ import { ReportsView } from "@/components/maintenance/admin-reports";
 import { AuditLogView } from "@/components/maintenance/audit-log";
 import { ApiDocsView } from "@/components/maintenance/api-docs";
 import { ProfileView } from "@/components/maintenance/profile";
+import { LandingPage } from "@/components/maintenance/landing/landing-page";
 import type { SessionUser } from "@/types";
 import { Wrench, Loader2 } from "lucide-react";
 
 export default function Home() {
-  const { user, authChecked, view, requestId, setUser, setAuthChecked } = useAppStore();
+  const { user, authChecked, view, requestId, landingView, setUser, setAuthChecked, setLandingView } = useAppStore();
 
   useEffect(() => {
     let cancelled = false;
@@ -43,31 +44,47 @@ export default function Home() {
   if (!authChecked) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-primary-foreground">
           <Wrench className="h-6 w-6" />
         </div>
-        <p className="text-sm font-semibold">FixCampus</p>
+        <p className="font-display text-sm font-semibold">FixCampus</p>
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  if (!user) {
-    return <AuthView onAuthed={(u) => { setUser(u); setAuthChecked(true); }} />;
+  // Authenticated → app shell
+  if (user) {
+    return (
+      <AppShell>
+        {view === "dashboard" && <DashboardView />}
+        {view === "requests" && <RequestsListView />}
+        {view === "new-request" && <RequestFormView />}
+        {view === "request-detail" && requestId && <RequestDetailView id={requestId} />}
+        {view === "users" && <UsersView />}
+        {view === "categories" && <CategoriesView />}
+        {view === "reports" && <ReportsView />}
+        {view === "audit" && <AuditLogView />}
+        {view === "api-docs" && <ApiDocsView />}
+        {view === "profile" && <ProfileView />}
+      </AppShell>
+    );
+  }
+
+  // Unauthenticated: landing page first, then auth (register/login)
+  if (landingView === "auth") {
+    return (
+      <AuthView
+        onAuthed={(u) => { setUser(u); setAuthChecked(true); }}
+        onBackHome={() => setLandingView("landing")}
+      />
+    );
   }
 
   return (
-    <AppShell>
-      {view === "dashboard" && <DashboardView />}
-      {view === "requests" && <RequestsListView />}
-      {view === "new-request" && <RequestFormView />}
-      {view === "request-detail" && requestId && <RequestDetailView id={requestId} />}
-      {view === "users" && <UsersView />}
-      {view === "categories" && <CategoriesView />}
-      {view === "reports" && <ReportsView />}
-      {view === "audit" && <AuditLogView />}
-      {view === "api-docs" && <ApiDocsView />}
-      {view === "profile" && <ProfileView />}
-    </AppShell>
+    <LandingPage
+      onGetStarted={() => setLandingView("auth", "register")}
+      onTrack={() => setLandingView("landing")}
+    />
   );
 }
