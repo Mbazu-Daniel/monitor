@@ -28,27 +28,27 @@ export function AuthView({ onAuthed, onBackHome }: { onAuthed: (user: SessionUse
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       {/* Brand panel */}
-      <div className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 px-6 py-10 text-white lg:w-[46%] lg:px-12 lg:py-14">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-teal-400/10 blur-3xl" />
+      <div className="relative flex flex-col justify-between overflow-hidden bg-plum px-6 py-10 text-cream lg:w-[46%] lg:px-12 lg:py-14">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/20 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-plum-soft/40 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Wrench className="h-6 w-6" />
             </div>
             <div>
-              <p className="font-display text-lg font-bold leading-tight">FixCampus</p>
-              <p className="text-sm text-emerald-100/90">Maintenance Service System</p>
+              <p className="font-display text-lg font-semibold leading-tight text-cream">FixCampus</p>
+              <p className="text-sm text-cream/70">Maintenance Service System</p>
             </div>
           </div>
 
           <div className="mt-10 lg:mt-16">
-            <h1 className="font-display max-w-md text-2xl font-bold leading-snug sm:text-3xl lg:text-4xl lg:leading-snug">
+            <h1 className="font-display max-w-md text-2xl font-semibold leading-snug text-cream sm:text-3xl lg:text-4xl lg:leading-snug">
               Report it once. We track it to the end.
             </h1>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-emerald-50/90 sm:text-base">
-              The digital home for every campus maintenance request — faulty electricity, leaking pipes, damaged
-              furniture, internet issues and hostel repairs. No more paper forms or lost phone calls.
+            <p className="mt-4 max-w-md text-sm leading-relaxed text-cream/75 sm:text-base">
+              The digital home for every campus maintenance request: faulty electricity, leaking pipes, damaged
+              furniture, internet issues, and hostel repairs. No more paper forms or lost phone calls.
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:mt-10">
@@ -57,23 +57,23 @@ export function AuthView({ onAuthed, onBackHome }: { onAuthed: (user: SessionUse
                 { icon: Droplets, title: "Plumbing", desc: "Leaks & drainage" },
                 { icon: Wifi, title: "Network", desc: "Internet problems" },
               ].map((f) => (
-                <div key={f.title} className="rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur">
-                  <f.icon className="h-5 w-5 text-emerald-100" />
-                  <p className="mt-2 text-sm font-semibold">{f.title}</p>
-                  <p className="text-xs text-emerald-100/80">{f.desc}</p>
+                <div key={f.title} className="rounded-xl border border-cream/10 bg-cream/5 p-3">
+                  <f.icon className="h-5 w-5 text-primary" />
+                  <p className="mt-2 text-sm font-semibold text-cream">{f.title}</p>
+                  <p className="text-xs text-cream/60">{f.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="relative mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-emerald-100/80 lg:mt-0">
+        <div className="relative mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-cream/70 lg:mt-0">
           <span className="flex items-center gap-1.5"><ClipboardCheck className="h-4 w-4" /> Full audit trail</span>
           <span className="flex items-center gap-1.5"><BellRing className="h-4 w-4" /> Live notifications</span>
           {onBackHome && (
             <button
               onClick={onBackHome}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-emerald-100/90 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-cream/80 transition-colors hover:bg-cream/10 hover:text-cream"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to home
             </button>

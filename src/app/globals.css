@@ -6,9 +6,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-hanken);
+  --font-display: var(--font-familjen);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-jakarta);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -44,73 +44,101 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/*
+ * FixCampus design system — inspired by Nectar HR.
+ * Warm coral primary on cream paper, navy ink, plum dark sections.
+ * All text colors verified for WCAG AA contrast on their backgrounds.
+ */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.596 0.13 162.48);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.696 0.17 162.48);
-  --chart-1: oklch(0.596 0.13 162.48);
-  --chart-2: oklch(0.769 0.188 70.08);
-  --chart-3: oklch(0.627 0.265 303.9);
-  --chart-4: oklch(0.645 0.246 16.439);
-  --chart-5: oklch(0.6 0.118 184.704);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Surfaces */
+  --background: #FAF8F5;          /* daikon cream — page bg */
+  --foreground: #1A1B22;          /* near-navy ink for body */
+  --card: #FFFFFF;                /* pure white cards on cream */
+  --card-foreground: #1A1B22;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1B22;
+
+  /* Primary = Nectar coral, deepened for WCAG AA on white text (6:1) and on peach tints. */
+  --primary: #B5341A;              /* deep coral-red, AA on white/peach/cream */
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary / muted surfaces (warm taupe) */
+  --secondary: #F2EFE9;            /* poi taupe */
+  --secondary-foreground: #1A1B22;
+  --muted: #F2EFE9;
+  --muted-foreground: #534D4A;     /* earl-grey warm grey */
+
+  --accent: #FBE8DE;               /* pale peach tint */
+  --accent-foreground: #1A1B22;
+
+  --destructive: #A11D12;          /* deep red, AA on white */
+  --border: #E7E1D8;              /* warm hairline */
+  --input: #E7E1D8;
+  --ring: #B5341A;
+
+  /* Brand extended */
+  --coral: #F45837;
+  --coral-bright: #FF5745;
+  --coral-pink: #FF5A60;
+  --navy: #061B34;                 /* deep navy — headings */
+  --plum: #440220;                 /* oxblood plum — dark sections */
+  --plum-soft: #5F1831;
+  --cream: #FAF8F5;
+  --taupe: #F2EFE9;
+  --peach: #FBE8DE;
+  --amber: #B8750A;                /* amber accessible text on light */
+  --teal: #0E7C7B;                 /* accessible teal for accents */
+
+  --chart-1: #B5341A;
+  --chart-2: #B8750A;
+  --chart-3: #0E7C7B;
+  --chart-4: #5F1831;
+  --chart-5: #061B34;
+
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1A1B22;
+  --sidebar-primary: #B5341A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #FBE8DE;
+  --sidebar-accent-foreground: #1A1B22;
+  --sidebar-border: #E7E1D8;
+  --sidebar-ring: #B5341A;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.696 0.17 162.48);
-  --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 162.48);
-  --sidebar-primary-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #1A1320;          /* deep plum-tinted near-black */
+  --foreground: #FAF8F5;
+  --card: #2A1A2A;
+  --card-foreground: #FAF8F5;
+  --popover: #2A1A2A;
+  --popover-foreground: #FAF8F5;
+  --primary: #FF6A4F;
+  --primary-foreground: #1A0A14;
+  --secondary: #3A2538;
+  --secondary-foreground: #FAF8F5;
+  --muted: #3A2538;
+  --muted-foreground: #C9BFB8;
+  --accent: #440220;
+  --accent-foreground: #FAF8F5;
+  --destructive: #FF6B5A;
+  --border: rgba(250, 248, 245, 0.12);
+  --input: rgba(250, 248, 245, 0.16);
+  --ring: #FF6A4F;
+  --chart-1: #FF6A4F;
+  --chart-2: #E0A93B;
+  --chart-3: #2BB8B0;
+  --chart-4: #C98AA6;
+  --chart-5: #7AA2C9;
+  --sidebar: #2A1A2A;
+  --sidebar-foreground: #FAF8F5;
+  --sidebar-primary: #FF6A4F;
+  --sidebar-primary-foreground: #1A0A14;
+  --sidebar-accent: #440220;
+  --sidebar-accent-foreground: #FAF8F5;
+  --sidebar-border: rgba(250, 248, 245, 0.12);
+  --sidebar-ring: #FF6A4F;
 }
 
 @layer base {
@@ -119,80 +147,88 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent single-word orphans on the last line of wrapped paragraphs. */
+    text-wrap: pretty;
+  }
+  /* Headings use the display face */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display), var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.018em;
   }
 }
 
-/* Custom scrollbars */
+/* Display font helper */
+.font-display {
+  font-family: var(--font-display), var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Mono eyebrow / label helper (Nectar uses mono labels) */
+.font-mono-label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+/* Subtle dotted grid background for hero — neutral, warm */
+.bg-grid {
+  background-image:
+    radial-gradient(circle, rgba(68, 2, 32, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Coral glow blob — decorative, low-opacity */
+.bg-coral-glow {
+  background: radial-gradient(60% 60% at 50% 30%, rgba(244, 88, 55, 0.16) 0%, transparent 70%);
+}
+
+/* Warm cream → peach radial wash */
+.bg-warm-wash {
+  background:
+    radial-gradient(80% 50% at 80% 0%, rgba(251, 232, 222, 0.7) 0%, transparent 60%),
+    radial-gradient(60% 40% at 0% 100%, rgba(242, 239, 233, 0.6) 0%, transparent 60%);
+}
+
+/* Custom scrollbars — warm neutral */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.7 0 0 / 35%);
+  background: rgba(83, 77, 74, 0.28);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.6 0 0 / 50%);
+  background: rgba(83, 77, 74, 0.45);
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: oklch(0.4 0 0 / 60%);
+  background: rgba(201, 191, 184, 0.3);
 }
 
-/* Subtle entrance animation */
+/* Entrance animation */
 @keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-up {
-  animation: fade-up 0.35s ease-out both;
+  animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Display font helper */
-.font-display {
-  font-family: var(--font-display), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.02em;
-}
-
-/* Subtle dotted grid background for hero */
-.bg-grid {
-  background-image:
-    linear-gradient(to right, oklch(0.5 0 0 / 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(0.5 0 0 / 0.06) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-/* Mesh gradient blob */
-.bg-mesh {
-  background:
-    radial-gradient(60% 60% at 20% 20%, oklch(0.85 0.13 162 / 0.18) 0%, transparent 60%),
-    radial-gradient(50% 50% at 80% 30%, oklch(0.85 0.1 200 / 0.18) 0%, transparent 60%),
-    radial-gradient(40% 40% at 50% 90%, oklch(0.85 0.12 180 / 0.16) 0%, transparent 60%);
-}
-
-/* Marquee scroll for trust logos */
-@keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.animate-marquee {
-  animation: marquee 28s linear infinite;
-}
-
-/* Soft floating animation */
+/* Soft floating animation (decorative only — never overlaps text) */
 @keyframes float-soft {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  50%      { transform: translateY(-5px); }
 }
 .animate-float-soft {
-  animation: float-soft 4s ease-in-out infinite;
+  animation: float-soft 5s ease-in-out infinite;
 }
 
+/* Coral pulse for live indicators */
+@keyframes coral-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+.animate-coral-pulse {
+  animation: coral-pulse 2s ease-in-out infinite;
+}

@@ -44,7 +44,7 @@ export default function Home() {
   if (!authChecked) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-primary-foreground">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <Wrench className="h-6 w-6" />
         </div>
         <p className="font-display text-sm font-semibold">FixCampus</p>
