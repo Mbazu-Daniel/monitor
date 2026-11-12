@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { startingCategoriesSchema } from "@mivacampus/contracts";
 
-export const Subdomain = z
+const Subdomain = z
   .string()
   .trim()
   .toLowerCase()
@@ -8,7 +9,7 @@ export const Subdomain = z
   .max(48)
   .regex(/^[a-z0-9](-?[a-z0-9])*$/, "Subdomains use lowercase letters, numbers and dashes");
 
-export const CampusCode = z
+const CampusCode = z
   .string()
   .trim()
   .toUpperCase()
@@ -21,16 +22,7 @@ export const CreateOrganizationDto = z.object({
   slug: Subdomain.optional(),
   code: CampusCode.optional(),
   department: z.string().trim().max(120).optional().or(z.literal("")),
-  categories: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(80),
-        description: z.string().trim().max(300).optional().or(z.literal("")),
-        icon: z.string().trim().max(50).default("Wrench"),
-      }),
-    )
-    .min(1, "Pick at least one starting category")
-    .max(24),
+  categories: startingCategoriesSchema,
 });
 export type CreateOrganizationDto = z.infer<typeof CreateOrganizationDto>;
 

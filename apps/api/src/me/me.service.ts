@@ -8,6 +8,14 @@ import { AuditSink } from "../common/utils/audit.ts";
 export class MeService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient, private readonly auditSink: AuditSink) {}
   
+  private async resolveCampus(userId: string, organizationId: string | null) {
+    if (!organizationId) return [null, null] as const;
+    return Promise.all([
+      this.db.member.findUnique({ where: { organizationId_userId: { organizationId, userId } } }),
+      this.db.organization.findUnique({ where: { id: organizationId }, select: { name: true, slug: true, code: true } }),
+    ]);
+  }
+
   async getMe(userId: string, organizationId: string | null) {
     const dbUser = await this.db.user.findUnique({
       where: { id: userId },
@@ -22,12 +30,7 @@ export class MeService {
       },
     });
 
-    const [membership, organization] = organizationId
-      ? await Promise.all([
-          this.db.member.findUnique({ where: { organizationId_userId: { organizationId, userId } } }),
-          this.db.organization.findUnique({ where: { id: organizationId }, select: { name: true, slug: true, code: true } }),
-        ])
-      : [null, null];
+    const [membership, organization] = await this.resolveCampus(userId, organizationId);
 
     return {
       user: {

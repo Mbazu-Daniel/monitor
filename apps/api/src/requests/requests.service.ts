@@ -14,6 +14,39 @@ import { loadRequestForAction, assertCanView, scopedRequestLookup } from "./requ
 
 const PRIORITY_RANK: Record<string, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
+function searchClause(search?: string): Prisma.ServiceRequestWhereInput | null {
+  if (!search) return null;
+  return {
+    OR: [
+      { reference: { contains: search, mode: "insensitive" } },
+      { title: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+      { location: { contains: search, mode: "insensitive" } },
+    ],
+  };
+}
+
+function visibilityClause(tenant: TenantContext | undefined, scope: TenantScope): Prisma.ServiceRequestWhereInput | null {
+  if (tenant?.role === "STUDENT" || tenant?.role === "STAFF") {
+    return { creatorId: scope.memberIdOrNoMatch() };
+  }
+  if (tenant?.role === "OFFICER") {
+    return { assignments: { some: { officerId: scope.memberIdOrNoMatch(), isActive: true } } };
+  }
+  return null;
+}
+
+function optionalClauses(query: Record<string, unknown>): Prisma.ServiceRequestWhereInput[] {
+  const out: Prisma.ServiceRequestWhereInput[] = [];
+  const status = typeof query.status === "string" ? query.status : undefined;
+  const priority = typeof query.priority === "string" ? query.priority : undefined;
+  const categoryId = typeof query.categoryId === "string" ? query.categoryId : undefined;
+  if (status) out.push({ status });
+  if (priority) out.push({ priority });
+  if (categoryId) out.push({ categoryId });
+  return out;
+}
+
 const readyAttachments = {
   where: { status: "READY" },
   select: { id: true, key: true, fileName: true, mimeType: true, sizeBytes: true, status: true, createdAt: true },
@@ -32,40 +65,41 @@ export class RequestsService {
     return this.attachmentsService.presign(attachments);
   }
 
-  async listFor(query: Record<string, unknown>, tenant: TenantContext | undefined) {
-    const { page, pageSize, skip, take } = parsePagination(query);
+  private buildWhere(query: Record<string, unknown>, tenant: TenantContext | undefined) {
     const search = typeof query.search === "string" ? query.search.trim() : undefined;
-    const status = typeof query.status === "string" ? query.status : undefined;
-    const priority = typeof query.priority === "string" ? query.priority : undefined;
-    const categoryId = typeof query.categoryId === "string" ? query.categoryId : undefined;
-    const sort = typeof query.sort === "string" ? query.sort : "newest";
-
     const scope = TenantScope.of(tenant);
-    const includeAssignments = tenant?.role !== "STUDENT" && tenant?.role !== "STAFF";
 
     const and: Prisma.ServiceRequestWhereInput[] = [scope.where()];
+    const visibility = visibilityClause(tenant, scope);
+    if (visibility) and.push(visibility);
 
-    if (tenant?.role === "STUDENT" || tenant?.role === "STAFF") {
-      and.push({ creatorId: scope.memberIdOrNoMatch() });
-    } else if (tenant?.role === "OFFICER") {
-      and.push({ assignments: { some: { officerId: scope.memberIdOrNoMatch(), isActive: true } } });
-    }
+    const searchOr = searchClause(search);
+    if (searchOr) and.push(searchOr);
 
-    if (search) {
-      and.push({
-        OR: [
-          { reference: { contains: search, mode: "insensitive" } },
-          { title: { contains: search, mode: "insensitive" } },
-          { description: { contains: search, mode: "insensitive" } },
-          { location: { contains: search, mode: "insensitive" } },
-        ],
-      });
-    }
-    if (status) and.push({ status });
-    if (priority) and.push({ priority });
-    if (categoryId) and.push({ categoryId });
+    and.push(...optionalClauses(query));
 
-    const where: Prisma.ServiceRequestWhereInput = and.length > 1 ? { AND: and } : and[0];
+    return { where: and.length > 1 ? { AND: and } : and[0], includeAssignments: tenant?.role !== "STUDENT" && tenant?.role !== "STAFF" };
+  }
+
+  private mapListItem(item: { assignments?: unknown; creator: unknown }, includeAssignments: boolean) {
+    const itemAssignments = Array.isArray(item.assignments) ? (item.assignments as Array<Record<string, unknown>>) : [];
+    return {
+      ...item,
+      creator: toActor(item.creator as MemberHolder),
+      assignments: includeAssignments
+        ? itemAssignments.map((a) => ({
+            ...a,
+            officer: toActor(a.officer as MemberHolder),
+            assignedByUser: toActor(a.assignedByUser as MemberHolder),
+          }))
+        : undefined,
+    };
+  }
+
+  async listFor(query: Record<string, unknown>, tenant: TenantContext | undefined) {
+    const { page, pageSize, skip, take } = parsePagination(query);
+    const sort = typeof query.sort === "string" ? query.sort : "newest";
+    const { where, includeAssignments } = this.buildWhere(query, tenant);
 
     const [total, items] = await Promise.all([
       this.db.serviceRequest.count({ where }),
@@ -95,20 +129,7 @@ export class RequestsService {
       }),
     ]);
 
-    const mapped = items.map((item) => {
-      const itemAssignments = Array.isArray(item.assignments) ? item.assignments : [];
-      return {
-        ...item,
-        creator: toActor(item.creator as MemberHolder),
-        assignments: includeAssignments
-          ? itemAssignments.map((a) => ({
-              ...a,
-              officer: toActor(a.officer as MemberHolder),
-              assignedByUser: toActor(a.assignedByUser as MemberHolder),
-            }))
-          : undefined,
-      };
-    });
+    const mapped = items.map((item) => this.mapListItem(item, includeAssignments));
 
     let out = mapped as unknown as Array<Record<string, unknown>>;
     if (sort === "priority") {

@@ -86,16 +86,21 @@ export class AttachmentsService {
     };
   }
 
+  private async loadOwnAttachment(requestId: string, attachmentId: string, memberId: string | null, role: string | null | undefined, forbiddenMessage: string) {
+    const attachment = await this.db.attachment.findFirst({ where: { id: attachmentId, requestId } });
+    if (!attachment) throw new NotFoundException("Attachment not found.");
+    if (attachment.uploadedById !== memberId && role !== "ADMIN") {
+      throw new ForbiddenException(forbiddenMessage);
+    }
+    return attachment;
+  }
+
   async confirmUpload(requestId: string, attachmentId: string, user: { id: string }, tenant: TenantContext | undefined) {
     const memberId = tenant?.memberId ?? null;
     if (!memberId) throw new BadRequestException("You must be in a campus to confirm an upload.");
     await this.loadRequestFor(requestId, tenant);
 
-    const attachment = await this.db.attachment.findFirst({ where: { id: attachmentId, requestId } });
-    if (!attachment) throw new NotFoundException("Attachment not found.");
-    if (attachment.uploadedById !== memberId && tenant?.role !== "ADMIN") {
-      throw new ForbiddenException("Only the uploader can confirm this upload.");
-    }
+    const attachment = await this.loadOwnAttachment(requestId, attachmentId, memberId, tenant?.role, "Only the uploader can confirm this upload.");
 
     if (attachment.status === "READY") {
       const [withUrl] = await this.withUploadUrls([attachment]);
@@ -135,11 +140,7 @@ export class AttachmentsService {
     const memberId = tenant?.memberId ?? null;
     await this.loadRequestFor(requestId, tenant);
 
-    const attachment = await this.db.attachment.findFirst({ where: { id: attachmentId, requestId } });
-    if (!attachment) throw new NotFoundException("Attachment not found.");
-    if (attachment.uploadedById !== memberId && tenant?.role !== "ADMIN") {
-      throw new ForbiddenException("Only the uploader or an administrator can delete this attachment.");
-    }
+    const attachment = await this.loadOwnAttachment(requestId, attachmentId, memberId, tenant?.role, "Only the uploader or an administrator can delete this attachment.");
 
     if (this.storage.isConfigured()) {
       try {

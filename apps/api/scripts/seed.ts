@@ -12,7 +12,7 @@ const db = new PrismaClient({ adapter: new PrismaPg(new Pool({ connectionString 
 
 const daysAgo = (d: number, h = 0) => new Date(Date.now() - d * 864e5 - h * 36e5);
 
-async function main() {
+async function clearExisting() {
   console.log("Clearing existing data…");
   await db.notification.deleteMany();
   await db.comment.deleteMany();
@@ -27,7 +27,9 @@ async function main() {
   await db.account.deleteMany();
   await db.session.deleteMany();
   await db.user.deleteMany();
+}
 
+async function createDemoUsers() {
   console.log("Creating users…");
   const admin = await createCredentialUser({ name: "Dr. Ngozi Eze", email: "admin@university.edu", password: "Admin@123", department: "Works & Services", phone: "0803 111 0001" });
   const officer1 = await createCredentialUser({ name: "John Okafor", email: "officer1@university.edu", password: "Officer@123", department: "Electrical Unit", phone: "0803 222 0002" });
@@ -37,7 +39,13 @@ async function main() {
   const staff3 = await createCredentialUser({ name: "Fatima Sule", email: "staff3@university.edu", password: "Staff@123", department: "Mass Communication", matricNo: "MOU/0002" });
   const staff = await createCredentialUser({ name: "Mrs. Funke Adeyemi", email: "staff@university.edu", password: "Staff@123", department: "Registry", matricNo: "MOU/0003" });
   const student = await createCredentialUser({ name: "Tobi Adebisi", email: "student@university.edu", password: "Student@123", department: "Computer Science", matricNo: "MOU/S0001", phone: "0803 666 0006" });
+  return { admin, officer1, officer2, officer3, staff2, staff3, staff, student };
+}
 
+type DemoUsers = Awaited<ReturnType<typeof createDemoUsers>>;
+
+async function createDemoCampus(users: DemoUsers) {
+  const { admin, officer1, officer2, officer3, staff2, staff3, staff, student } = users;
   console.log("Creating demo campus…");
   const demoOrg = await db.organization.create({
     data: {
@@ -59,11 +67,18 @@ async function main() {
     },
   });
   console.log(`Subdomain: ${demoOrg.slug} · Campus code for signups: ${demoOrg.code}`);
+  return demoOrg;
+}
 
-  const members = await db.member.findMany({ where: { organizationId: demoOrg.id }, select: { id: true, userId: true } });
+async function memberMapFor(demoOrgId: string) {
+  const members = await db.member.findMany({ where: { organizationId: demoOrgId }, select: { id: true, userId: true } });
   const midMap = new Map(members.map((m) => [m.userId, m.id] as const));
-  const mid = (userId: string) => midMap.get(userId)!;
+  return (userId: string) => midMap.get(userId)!;
+}
 
+type Mid = (userId: string) => string;
+
+async function createCategories() {
   console.log("Creating categories…");
   const cats = await Promise.all(
     [
@@ -78,15 +93,29 @@ async function main() {
     ].map((c) => db.category.create({ data: c }))
   );
   const [electrical, plumbing, furniture, internet, classroom, hostel, civil] = cats;
+  return { cats, electrical, plumbing, furniture, internet, classroom, hostel, civil };
+}
 
-  console.log("Creating service requests…");
-  type Req = {
-    title: string; description: string; location: string; priority: string;
-    status: string; categoryId: string; creatorId: string; createdDaysAgo: number;
-    officerId?: string; logFlow: { to: string; note?: string }[]; comments?: { userId: string; body: string }[];
-  };
+type Req = {
+  title: string; description: string; location: string; priority: string;
+  status: string; categoryId: string; creatorId: string; createdDaysAgo: number;
+  officerId?: string; logFlow: { to: string; note?: string }[]; comments?: { userId: string; body: string }[];
+};
 
-  const seedReqs: Req[] = [
+function buildSeedRequests({ electrical, plumbing, furniture, internet, classroom, hostel, civil, cleaning, mid, users }: {
+  electrical: { id: string };
+  plumbing: { id: string };
+  furniture: { id: string };
+  internet: { id: string };
+  classroom: { id: string };
+  hostel: { id: string };
+  civil: { id: string };
+  cleaning: { id: string };
+  mid: Mid;
+  users: DemoUsers;
+}): Req[] {
+  const { staff, staff2, staff3, admin, officer1, officer2, officer3 } = users;
+  return [
     {
       title: "Power socket sparking in CSC Lab 2",
       description: "The wall socket near the third row of computers sparked when a laptop was plugged in this morning. It smells burnt and we have stopped using that row. This is dangerous and could cause a fire.",
@@ -160,7 +189,7 @@ async function main() {
     {
       title: "Bin overflowing behind Faculty of Science",
       description: "The waste bins behind the faculty have not been collected for over a week. Smell is affecting the nearby classrooms.",
-      location: "Behind Faculty of Science", priority: "MEDIUM", status: "IN_PROGRESS", categoryId: cats[7].id, creatorId: mid(staff3.id), createdDaysAgo: 4, officerId: mid(officer2.id),
+      location: "Behind Faculty of Science", priority: "MEDIUM", status: "IN_PROGRESS", categoryId: cleaning.id, creatorId: mid(staff3.id), createdDaysAgo: 4, officerId: mid(officer2.id),
       logFlow: [{ to: "OPEN", note: "Request submitted" }, { to: "ASSIGNED", note: "Assigned to Amina Bello" }, { to: "IN_PROGRESS", note: "Scheduled extra collection with waste contractor" }],
     },
     {
@@ -177,50 +206,73 @@ async function main() {
       logFlow: [{ to: "OPEN", note: "Request submitted" }, { to: "REJECTED", note: "Departmental printer is serviced by vendor contract, not facility maintenance. Redirected to ICT services." }],
     },
   ];
+}
 
-  let seq = 1;
-  for (const r of seedReqs) {
-    const created = daysAgo(r.createdDaysAgo);
-    const reference = `SR-${seq++}`;
-    const req = await db.serviceRequest.create({
+function actorForStep(stepTo: string, r: Req, adminMemberId: string) {
+  if (stepTo === "OPEN") return r.creatorId;
+  if (stepTo === "REJECTED" || stepTo === "ASSIGNED") return adminMemberId;
+  return r.officerId ?? adminMemberId;
+}
+
+async function seedStatusLogs(reqId: string, r: Req, created: Date, adminMemberId: string) {
+  for (let i = 0; i < r.logFlow.length; i++) {
+    const step = r.logFlow[i];
+    const actorMemberId = actorForStep(step.to, r, adminMemberId);
+    await db.statusLog.create({
       data: {
-        reference, title: r.title, description: r.description, location: r.location,
-        priority: r.priority, status: r.status, categoryId: r.categoryId, creatorId: r.creatorId,
-        organizationId: demoOrg.id,
-        createdAt: created, updatedAt: created,
+        requestId: reqId, memberId: actorMemberId,
+        fromStatus: i === 0 ? null : r.logFlow[i - 1].to, toStatus: step.to, note: step.note || null,
+        createdAt: new Date(created.getTime() + i * 6 * 36e5),
       },
     });
-
-    for (let i = 0; i < r.logFlow.length; i++) {
-      const step = r.logFlow[i];
-      const actorMemberId = step.to === "OPEN" ? r.creatorId : step.to === "REJECTED" ? mid(admin.id) : step.to === "ASSIGNED" ? mid(admin.id) : (r.officerId ?? mid(admin.id));
-      await db.statusLog.create({
-        data: {
-          requestId: req.id, memberId: actorMemberId,
-          fromStatus: i === 0 ? null : r.logFlow[i - 1].to, toStatus: step.to, note: step.note || null,
-          createdAt: new Date(created.getTime() + i * 6 * 36e5),
-        },
-      });
-    }
-
-    if (r.officerId) {
-      await db.assignment.create({
-        data: {
-          requestId: req.id, officerId: r.officerId!, assignedById: mid(admin.id),
-          note: "Please attend to this promptly.",
-          isActive: true, createdAt: new Date(created.getTime() + 3 * 36e5),
-        },
-      });
-      await db.serviceRequest.update({ where: { id: req.id }, data: { updatedAt: new Date(created.getTime() + r.logFlow.length * 6 * 36e5) } });
-    }
-
-    for (const c of r.comments || []) {
-      await db.comment.create({ data: { requestId: req.id, memberId: mid(c.userId), body: c.body } });
-    }
   }
+}
 
-  await db.organization.update({ where: { id: demoOrg.id }, data: { nextRequestSeq: seq } });
+async function seedAssignment(reqId: string, r: Req, created: Date, adminMemberId: string) {
+  if (!r.officerId) return;
+  await db.assignment.create({
+    data: {
+      requestId: reqId, officerId: r.officerId, assignedById: adminMemberId,
+      note: "Please attend to this promptly.",
+      isActive: true, createdAt: new Date(created.getTime() + 3 * 36e5),
+    },
+  });
+  await db.serviceRequest.update({ where: { id: reqId }, data: { updatedAt: new Date(created.getTime() + r.logFlow.length * 6 * 36e5) } });
+}
 
+async function seedComments(reqId: string, r: Req, mid: Mid) {
+  for (const c of r.comments || []) {
+    await db.comment.create({ data: { requestId: reqId, memberId: mid(c.userId), body: c.body } });
+  }
+}
+
+async function seedOneRequest(r: Req, reference: string, demoOrgId: string, mid: Mid, adminMemberId: string) {
+  const created = daysAgo(r.createdDaysAgo);
+  const req = await db.serviceRequest.create({
+    data: {
+      reference, title: r.title, description: r.description, location: r.location,
+      priority: r.priority, status: r.status, categoryId: r.categoryId, creatorId: r.creatorId,
+      organizationId: demoOrgId,
+      createdAt: created, updatedAt: created,
+    },
+  });
+  await seedStatusLogs(req.id, r, created, adminMemberId);
+  await seedAssignment(req.id, r, created, adminMemberId);
+  await seedComments(req.id, r, mid);
+}
+
+async function seedRequests(seedReqs: Req[], demoOrgId: string, mid: Mid, users: DemoUsers) {
+  const adminMemberId = mid(users.admin.id);
+  let seq = 1;
+  for (const r of seedReqs) {
+    const reference = `SR-${seq++}`;
+    await seedOneRequest(r, reference, demoOrgId, mid, adminMemberId);
+  }
+  return seq;
+}
+
+async function seedNotifications(demoOrgId: string, mid: Mid, users: DemoUsers) {
+  const { staff2, officer1, officer2, admin } = users;
   console.log("Creating notifications…");
   const notifs = [
     { recipientId: staff2.id, requestRef: `SR-1`, title: `Request SR-1 is now In progress`, message: "Status changed from Assigned to In progress. Note: Isolated the circuit, sourcing replacement socket", type: "STATUS" },
@@ -232,9 +284,12 @@ async function main() {
   for (let i = 0; i < notifs.length; i++) {
     const { recipientId, requestRef, ...rest } = notifs[i];
     const linked = requestRef ? await db.serviceRequest.findFirst({ where: { reference: requestRef }, select: { id: true } }) : null;
-    await db.notification.create({ data: { ...rest, requestId: linked?.id, scope: "ORGANIZATION", memberId: mid(recipientId), organizationId: demoOrg.id, isRead: i > 2, createdAt: daysAgo(i, 3) } });
+    await db.notification.create({ data: { ...rest, requestId: linked?.id, scope: "ORGANIZATION", memberId: mid(recipientId), organizationId: demoOrgId, isRead: i > 2, createdAt: daysAgo(i, 3) } });
   }
+}
 
+async function seedAuditLogs(demoOrgId: string, mid: Mid, users: DemoUsers) {
+  const { staff2, officer1, officer3, admin } = users;
   console.log("Creating audit logs…");
   const audits = [
     { userId: admin.id, action: "USER_LOGIN", entityType: "AUTH", details: "Dr. Ngozi Eze signed in" },
@@ -246,9 +301,11 @@ async function main() {
   ];
   for (let i = 0; i < audits.length; i++) {
     const actorId = audits[i].userId as string;
-    await db.auditLog.create({ data: { ...audits[i], scope: "ORGANIZATION", memberId: mid(actorId), organizationId: demoOrg.id, createdAt: daysAgo(i, 1) } });
+    await db.auditLog.create({ data: { ...audits[i], scope: "ORGANIZATION", memberId: mid(actorId), organizationId: demoOrgId, createdAt: daysAgo(i, 1) } });
   }
+}
 
+async function printCounts(demoOrgCode: string) {
   const counts = {
     users: await db.user.count(),
     categories: await db.category.count(),
@@ -258,7 +315,22 @@ async function main() {
     comments: await db.comment.count(),
   };
   console.log("Seed complete:", JSON.stringify(counts));
-  console.log(`Demo campus code: ${demoOrg.code}`);
+  console.log(`Demo campus code: ${demoOrgCode}`);
+}
+
+async function main() {
+  await clearExisting();
+  const users = await createDemoUsers();
+  const demoOrg = await createDemoCampus(users);
+  const mid = await memberMapFor(demoOrg.id);
+  const { cats, electrical, plumbing, furniture, internet, classroom, hostel, civil } = await createCategories();
+  const seedReqs = buildSeedRequests({ electrical, plumbing, furniture, internet, classroom, hostel, civil, cleaning: cats[7], mid, users });
+  console.log("Creating service requests…");
+  const seq = await seedRequests(seedReqs, demoOrg.id, mid, users);
+  await db.organization.update({ where: { id: demoOrg.id }, data: { nextRequestSeq: seq } });
+  await seedNotifications(demoOrg.id, mid, users);
+  await seedAuditLogs(demoOrg.id, mid, users);
+  await printCounts(demoOrg.code);
 }
 
 main()

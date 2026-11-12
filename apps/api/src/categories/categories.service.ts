@@ -17,9 +17,13 @@ export class CategoriesService {
     return { categories };
   }
 
+  private findDuplicateName(name: string, organizationId: string | null) {
+    return this.db.category.findFirst({ where: { name, OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])] } });
+  }
+
   async create(dto: CategoryDto, user: { id: string; name: string }, tenant: TenantContext | undefined) {
     const organizationId = tenant?.organizationId ?? null;
-    const existing = await this.db.category.findFirst({ where: { name: dto.name, OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])] } });
+    const existing = await this.findDuplicateName(dto.name, organizationId);
     if (existing) throw new ConflictException("A category with this name already exists.");
 
     const category = await this.db.category.create({
@@ -48,7 +52,7 @@ export class CategoriesService {
     const category = await this.findInTenant(id, organizationId);
 
     if (dto.name && dto.name !== category.name) {
-      const dupe = await this.db.category.findFirst({ where: { name: dto.name, OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])] } });
+      const dupe = await this.findDuplicateName(dto.name, organizationId);
       if (dupe) throw new ConflictException("A category with this name already exists.");
     }
 

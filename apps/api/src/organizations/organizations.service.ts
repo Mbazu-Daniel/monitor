@@ -8,6 +8,19 @@ import { slugify, uniqueSlug } from "../common/utils/slug.ts";
 import { uniqueCampusCode } from "../common/utils/campus-code.ts";
 import type { CreateOrganizationDto, JoinOrganizationDto } from "./organizations.dto.ts";
 
+function buildAuthHeaders(cookieHeaders: Record<string, string>) {
+  const headers = new Headers();
+  const cookie = cookieHeaders["cookie"];
+  if (cookie) headers.set("cookie", cookie);
+  return headers;
+}
+
+function requireCreatedOrganization<T extends { id?: string | null } | null | undefined>(result: T): asserts result is T & { id: string } {
+  if (!result?.id) {
+    throw new ConflictException("Unable to create the campus right now. Please try again.");
+  }
+}
+
 @Injectable()
 export class OrganizationsService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient, private readonly auditSink: AuditSink) {}
@@ -37,60 +50,79 @@ export class OrganizationsService {
   }
 
   
+  private async assertSlugAvailable(slug: string | undefined) {
+    if (!slug) return;
+    const taken = await this.db.organization.findUnique({ where: { slug }, select: { id: true } });
+    if (taken) throw new ConflictException("That subdomain is already taken. Try another.");
+  }
+
+  private async assertCodeAvailable(code: string | undefined) {
+    if (!code) return;
+    const taken = await this.db.organization.findUnique({ where: { code }, select: { id: true } });
+    if (taken) throw new ConflictException("That campus code is already taken. Try another.");
+  }
+
+  private async resolveSlugAndCode(dto: CreateOrganizationDto) {
+    const slug = dto.slug ?? (await uniqueSlug(slugify(dto.name)));
+    await this.assertSlugAvailable(dto.slug);
+    const code = dto.code ?? (await uniqueCampusCode(dto.name));
+    await this.assertCodeAvailable(dto.code);
+    return { slug, code };
+  }
+
+  private async creatorMemberId(organizationId: string, userId: string): Promise<string | null> {
+    const member = await this.db.member.findFirst({ where: { organizationId, userId }, select: { id: true } });
+    return member?.id ?? null;
+  }
+
+  private async applyDepartment(userId: string, department: string | undefined) {
+    if (!department) return;
+    await this.db.user.update({ where: { id: userId }, data: { department } });
+  }
+
+  private async provisionCategories(organizationId: string, categories: CreateOrganizationDto["categories"]) {
+    const provisioned = [];
+    for (const category of categories) {
+      const reusable = await this.db.category.findFirst({ where: { name: category.name, OR: [{ organizationId: null }, { organizationId }] } });
+      if (reusable) {
+        provisioned.push(reusable);
+        continue;
+      }
+      provisioned.push(
+        await this.db.category.create({
+          data: {
+            name: category.name,
+            description: category.description || null,
+            icon: category.icon || "Wrench",
+            organizationId,
+          },
+        }),
+      );
+    }
+    return provisioned;
+  }
+
   async create(userId: string, dto: CreateOrganizationDto, cookieHeaders: Record<string, string>) {
     const existing = await this.db.member.findFirst({ where: { userId }, select: { id: true } });
     if (existing) {
       throw new ConflictException("You already belong to a campus.");
     }
 
-    const slug = dto.slug ?? (await uniqueSlug(slugify(dto.name)));
-    if (dto.slug) {
-      const taken = await this.db.organization.findUnique({ where: { slug: dto.slug }, select: { id: true } });
-      if (taken) throw new ConflictException("That subdomain is already taken. Try another.");
-    }
-    const code = dto.code ?? (await uniqueCampusCode(dto.name));
-    if (dto.code) {
-      const taken = await this.db.organization.findUnique({ where: { code: dto.code }, select: { id: true } });
-      if (taken) throw new ConflictException("That campus code is already taken. Try another.");
-    }
+    const { slug, code } = await this.resolveSlugAndCode(dto);
+    const headers = buildAuthHeaders(cookieHeaders);
 
-    const headers = new Headers();
-    if (cookieHeaders["cookie"]) headers.set("cookie", cookieHeaders["cookie"]);
-
-    if (dto.department) {
-      await this.db.user.update({ where: { id: userId }, data: { department: dto.department } });
-    }
+    await this.applyDepartment(userId, dto.department);
 
     const organization = await auth.api.createOrganization({
       body: { name: dto.name, slug, code },
       headers,
     });
-    if (!organization?.id) {
-      throw new ConflictException("Unable to create the campus right now. Please try again.");
-    }
+    requireCreatedOrganization(organization);
 
-    
-    const categories = [];
-    for (const category of dto.categories) {
-      const reusable = await this.db.category.findFirst({ where: { name: category.name, OR: [{ organizationId: null }, { organizationId: organization.id }] } });
-      if (reusable) {
-        categories.push(reusable);
-        continue;
-      }
-      categories.push(
-        await this.db.category.create({
-          data: {
-            name: category.name,
-            description: category.description || null,
-            icon: category.icon || "Wrench",
-            organizationId: organization.id,
-          },
-        }),
-      );
-    }
+    const categories = await this.provisionCategories(organization.id, dto.categories);
 
-    const creatorMember = await this.db.member.findFirst({ where: { organizationId: organization.id, userId }, select: { id: true } });
-    await this.auditSink.platform({ userId, memberId: creatorMember?.id ?? null, action: "ORGANIZATION_CREATED", entityType: "ORGANIZATION", entityId: organization.id, details: `Campus "${organization.name}" created with ${categories.length} starter categories`, organizationId: organization.id });
+    const creatorMemberId = await this.creatorMemberId(organization.id, userId);
+    await this.auditSink.platform({ userId, memberId: creatorMemberId, action: "ORGANIZATION_CREATED", entityType: "ORGANIZATION", entityId: organization.id, details: `Campus "${organization.name}" created with ${categories.length} starter categories`, organizationId: organization.id });
 
     return organization;
   }

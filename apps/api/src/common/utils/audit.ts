@@ -48,6 +48,16 @@ function toRow({ userId, memberId, action, entityType, entityId, details, organi
   };
 }
 
+async function persistQuietly(input: AuditInput): Promise<void> {
+  const data = toRow(input);
+  if (!data) return;
+  try {
+    await prisma.auditLog.create({ data });
+  } catch (e) {
+    logger.error({ err: e, action: input.action, entityId: input.entityId }, "[AUDIT_FAILED]");
+  }
+}
+
 @Injectable()
 export class AuditSink {
   async inTx(tx: Prisma.TransactionClient, input: AuditInput): Promise<void> {
@@ -57,22 +67,10 @@ export class AuditSink {
   }
 
   async platform(input: AuditInput): Promise<void> {
-    const data = toRow(input);
-    if (!data) return;
-    try {
-      await prisma.auditLog.create({ data });
-    } catch (e) {
-      logger.error({ err: e, action: input.action, entityId: input.entityId }, "[AUDIT_FAILED]");
-    }
+    return persistQuietly(input);
   }
 }
 
 export async function auditPlatform(input: AuditInput): Promise<void> {
-  const data = toRow(input);
-  if (!data) return;
-  try {
-    await prisma.auditLog.create({ data });
-  } catch (e) {
-    logger.error({ err: e, action: input.action, entityId: input.entityId }, "[AUDIT_FAILED]");
-  }
+  return persistQuietly(input);
 }

@@ -31,6 +31,13 @@ const statusLabel = (s: string) => {
   return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
+function statusAnnouncement(reference: string, from: string, to: string, label: (s: string) => string, note?: string) {
+  const title = `Request ${reference} is now ${label(to)}`;
+  const message = `Status changed from ${label(from)} to ${label(to)}.${note ? ` Note: ${note}` : ""}`;
+  const type: "SUCCESS" | "WARNING" | "STATUS" = to === "RESOLVED" || to === "CLOSED" ? "SUCCESS" : to === "REJECTED" ? "WARNING" : "STATUS";
+  return { title, message, type };
+}
+
 type MemberHolder = { role: string; user: Record<string, unknown> } | null | undefined;
 
 @Injectable()
@@ -129,12 +136,16 @@ export class ServiceRequestLifecycleService {
     return { request };
   }
 
-  async update(user: { id: string; name: string }, id: string, dto: UpdateRequestDto, tenant: TenantContext | undefined) {
+  private async loadScopedRequest(tenant: TenantContext | undefined, id: string) {
     const scope = TenantScope.of(tenant);
     const memberId = scope.memberId;
     const request = await loadRequestForAction(this.db, tenant, id);
+    return { scope, memberId, request, organizationId: scope.organizationId };
+  }
+
+  async update(user: { id: string; name: string }, id: string, dto: UpdateRequestDto, tenant: TenantContext | undefined) {
+    const { scope, memberId, request, organizationId } = await this.loadScopedRequest(tenant, id);
     id = request.id;
-    const organizationId = scope.organizationId;
 
     const isOwner = memberId !== null && request.creatorId === memberId;
     if (!canEdit({ role: tenant?.role, id: memberId }, request, request.status as RequestStatus)) {
@@ -171,11 +182,8 @@ export class ServiceRequestLifecycleService {
   }
 
   async remove(user: { id: string; name: string }, id: string, tenant: TenantContext | undefined) {
-    const scope = TenantScope.of(tenant);
-    const memberId = scope.memberId;
-    const request = await loadRequestForAction(this.db, tenant, id);
+    const { memberId, request, organizationId } = await this.loadScopedRequest(tenant, id);
     id = request.id;
-    const organizationId = scope.organizationId;
 
     if (!canDelete({ role: tenant?.role, id: memberId }, request, request.status as RequestStatus)) {
       throw new ForbiddenException("You can only delete your own request while it is still OPEN.");
@@ -190,6 +198,68 @@ export class ServiceRequestLifecycleService {
       });
     });
     return { success: true };
+  }
+
+  private async fanoutStatusChange(
+    user: { id: string; name: string },
+    request: { reference: string; title: string; creatorId: string; assignments: { officerId: string }[] },
+    id: string,
+    from: string,
+    to: string,
+    note: string | undefined,
+    memberId: string,
+    organizationId: string | null,
+    tenantRole: string | null | undefined,
+  ) {
+    const label = statusLabel;
+    const base = { requestId: id, organizationId };
+    if (to === "RESOLVED" && tenantRole === "OFFICER") {
+      await this.notifications.announce(
+        {
+          title: `Request ${request.reference} resolved`,
+          message: `${user.name} marked "${request.title}" as resolved. Review and close it.`,
+          type: "SUCCESS",
+          ...base,
+        },
+        { orgAdmins: true },
+      );
+    }
+    const announcement = statusAnnouncement(request.reference, from, to, label, note);
+    if (request.creatorId !== memberId) {
+      const creatorUserId = await this.memberUserId(request.creatorId);
+      if (creatorUserId) {
+        await this.notifications.announce({ ...announcement, ...base }, { userIds: [creatorUserId] });
+      }
+    }
+    const activeOfficer = request.assignments[0]?.officerId;
+    if (activeOfficer && activeOfficer !== memberId) {
+      const officerUserId = await this.memberUserId(activeOfficer);
+      if (officerUserId) {
+        await this.notifications.announce(
+          {
+            title: announcement.title,
+            message: `Status changed from ${label(from)} to ${label(to)}.`,
+            type: "STATUS",
+            ...base,
+          },
+          { userIds: [officerUserId] },
+        );
+      }
+    }
+    await this.notifications.announce(
+      { title: announcement.title, message: announcement.message, type: "STATUS", ...base },
+      { userIds: [user.id] },
+    );
+    this.realtime.emit({
+      type: "REQUEST_STATUS_CHANGED",
+      organizationId,
+      requestId: id,
+      reference: request.reference,
+      title: request.title,
+      actorId: user.id,
+      actorName: user.name,
+      detail: `${from} → ${to}`,
+    });
   }
 
   async changeStatus(user: { id: string; name: string }, id: string, dto: StatusUpdateDto, tenant: TenantContext | undefined) {
@@ -221,71 +291,7 @@ export class ServiceRequestLifecycleService {
       return reqUpdated;
     });
 
-    const label = statusLabel;
-    if (to === "RESOLVED" && tenant?.role === "OFFICER") {
-      await this.notifications.announce(
-        {
-          title: `Request ${request.reference} resolved`,
-          message: `${user.name} marked "${request.title}" as resolved. Review and close it.`,
-          type: "SUCCESS",
-          requestId: id,
-          organizationId,
-        },
-        { orgAdmins: true },
-      );
-    }
-    if (request.creatorId !== memberId) {
-      const creatorUserId = await this.memberUserId(request.creatorId);
-      if (creatorUserId) {
-        await this.notifications.announce(
-          {
-            title: `Request ${request.reference} is now ${label(to)}`,
-            message: `Status changed from ${label(from)} to ${label(to)}.${dto.note ? ` Note: ${dto.note}` : ""}`,
-            type: to === "RESOLVED" || to === "CLOSED" ? "SUCCESS" : to === "REJECTED" ? "WARNING" : "STATUS",
-            requestId: id,
-            organizationId,
-          },
-          { userIds: [creatorUserId] },
-        );
-      }
-    }
-    const activeOfficer = request.assignments[0]?.officerId;
-    if (activeOfficer && activeOfficer !== memberId) {
-      const officerUserId = await this.memberUserId(activeOfficer);
-      if (officerUserId) {
-        await this.notifications.announce(
-          {
-            title: `Request ${request.reference} is now ${label(to)}`,
-            message: `Status changed from ${label(from)} to ${label(to)}.`,
-            type: "STATUS",
-            requestId: id,
-            organizationId,
-          },
-          { userIds: [officerUserId] },
-        );
-      }
-    }
-    await this.notifications.announce(
-      {
-        title: `Request ${request.reference} is now ${label(to)}`,
-        message: `Status changed from ${label(from)} to ${label(to)}.${dto.note ? ` Note: ${dto.note}` : ""}`,
-        type: "STATUS",
-        requestId: id,
-        organizationId,
-      },
-      { userIds: [user.id] },
-    );
-
-    this.realtime.emit({
-      type: "REQUEST_STATUS_CHANGED",
-      organizationId,
-      requestId: id,
-      reference: request.reference,
-      title: request.title,
-      actorId: user.id,
-      actorName: user.name,
-      detail: `${from} → ${to}`,
-    });
+    await this.fanoutStatusChange(user, request, id, from, to, dto.note, memberId, organizationId, tenant?.role);
 
     return { request: updated };
   }

@@ -51,15 +51,3 @@ export const ADMIN = ac.newRole({
 export const orgRoles = { STUDENT, STAFF, OFFICER, ADMIN } as const;
 
 export type OrgRole = keyof typeof orgRoles;
-
-type Permission = {
-  [Resource in keyof typeof statement]: `${Resource}.${(typeof statement)[Resource][number]}`;
-}[keyof typeof statement];
-
-function hasPermission(role: string | undefined | null, permission: Permission): boolean {
-  if (!role) return false;
-  const resolved = orgRoles[role as OrgRole];
-  if (!resolved) return false;
-  const [resource, action] = permission.split(".", 2);
-  return resolved.authorize({ [resource]: [action] }).success;
-}
