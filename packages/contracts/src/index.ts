@@ -33,7 +33,9 @@ export {
   assignSchema,
   commentSchema,
   categorySchema,
+  startingCategoriesSchema,
   passwordSchema,
+  passwordMeetsPolicy,
   createUserSchema,
   updateUserSchema,
 } from "./dto.js";
@@ -45,8 +47,10 @@ export type {
   AssignDto,
   CommentDto,
   CategoryDto,
+  StartingCategoriesDto,
   CreateUserDto,
   UpdateUserDto,
 } from "./dto.js";
+export { campusCodeFromName } from "./campus-code.js";
 export { parsePagination, csvEscape } from "./pagination.js";
 export type { Pagination } from "./pagination.js";

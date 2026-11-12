@@ -47,12 +47,21 @@ export const categorySchema = z.object({
 });
 export type CategoryDto = z.infer<typeof categorySchema>;
 
+export const startingCategoriesSchema = z
+  .array(categorySchema)
+  .min(1, "Pick at least one starting category")
+  .max(24);
+export type StartingCategoriesDto = z.infer<typeof startingCategoriesSchema>;
+
 export const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters")
   .max(72, "Password must be at most 72 characters")
   .regex(/[A-Za-z]/, "Password must contain at least one letter")
   .regex(/[0-9]/, "Password must contain at least one number");
+
+export const passwordMeetsPolicy = (password: string): boolean =>
+  password.length >= 8 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, "Full name is required").max(100),
