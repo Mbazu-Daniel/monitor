@@ -24,11 +24,67 @@ type Invitation = {
   inviterEmail: string;
 };
 
+function mapInvitationError(err: unknown): { message: string; mismatch: boolean } {
+  const message = err instanceof ApiError ? err.message : "We couldn't load this invitation.";
+  const mismatch = /recipient/i.test(message);
+  const expired = /expired|not found|invalid/i.test(message);
+  return {
+    message: mismatch
+      ? "This invitation was sent to a different email address."
+      : expired
+        ? "This invitation is no longer valid. It may have expired or been canceled."
+        : message,
+    mismatch,
+  };
+}
+
 type InvitationState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "ready"; invitation: Invitation }
   | { kind: "error"; message: string; mismatch: boolean };
+
+function InvitationErrorFrame({ invitation, onSignOut, onHome }: { invitation: Extract<InvitationState, { kind: "error" }>; onSignOut: () => void; onHome: () => void }) {
+  return (
+    <AuthFrame title="Invitation." subline={invitation.message}>
+      <div className="flex flex-col gap-3">
+        {invitation.mismatch && (
+          <Button className="h-11 w-full" onClick={onSignOut}>
+            <LogOut className="mr-2 h-4 w-4" /> Sign out and use the invited email
+          </Button>
+        )}
+        <button onClick={onHome} className="h-11 rounded-full border border-border text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground">Home</button>
+      </div>
+    </AuthFrame>
+  );
+}
+
+function UnauthedFrame({ tab, onTabChange, onAuthed, onRefreshAfterAuth }: {
+  tab: "signin" | "create";
+  onTabChange: (tab: "signin" | "create") => void;
+  onAuthed: (user: SessionUser) => void;
+  onRefreshAfterAuth: () => Promise<void>;
+}) {
+  return (
+    <AuthFrame title="You're invited." subline="Sign in or create an account with the invited email address to accept your invitation.">
+      <div className="inline-flex w-full rounded-full bg-secondary p-1" role="tablist" aria-label="Sign in or create account">
+        <button role="tab" aria-selected={tab === "signin"} onClick={() => onTabChange("signin")} className={`flex-1 rounded-full px-4 py-2.5 text-[15px] font-semibold transition-colors ${tab === "signin" ? "bg-card shadow-[var(--shadow)]" : "text-muted-foreground"}`}>Sign in</button>
+        <button role="tab" aria-selected={tab === "create"} onClick={() => onTabChange("create")} className={`flex-1 rounded-full px-4 py-2.5 text-[15px] font-semibold transition-colors ${tab === "create" ? "bg-card shadow-[var(--shadow)]" : "text-muted-foreground"}`}>Create account</button>
+      </div>
+      <div className="mt-4">
+        {tab === "signin" ? (
+          <LoginForm onAuthed={onAuthed} />
+        ) : (
+          <CreateAccountForm onCreated={() => void onRefreshAfterAuth()} />
+        )}
+      </div>
+      <p className="mt-4 flex items-start gap-2 text-[12px] leading-snug text-muted-foreground">
+        <Mail className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        The invitation stays tied to the email address it was sent to. Use that one to accept.
+      </p>
+    </AuthFrame>
+  );
+}
 
 export function AcceptInvitationPage() {
   const { id } = useSearch({ from: "/accept-invitation" });
@@ -65,18 +121,7 @@ export function AcceptInvitationPage() {
         if (!cancelled) setInvitation({ kind: "ready", invitation: res });
       } catch (err) {
         if (cancelled) return;
-        const message = err instanceof ApiError ? err.message : "We couldn't load this invitation.";
-        const mismatch = /recipient/i.test(message);
-        const expired = /expired|not found|invalid/i.test(message);
-        setInvitation({
-          kind: "error",
-          message: mismatch
-            ? "This invitation was sent to a different email address."
-            : expired
-              ? "This invitation is no longer valid. It may have expired or been canceled."
-              : message,
-          mismatch,
-        });
+        setInvitation({ kind: "error", ...mapInvitationError(err) });
       }
     })();
     return () => {
@@ -89,33 +134,28 @@ export function AcceptInvitationPage() {
     setUser(res.user);
   }
 
-  async function accept(target: Invitation) {
+  async function respondToInvitation(target: Invitation, decision: "accept" | "decline") {
     setActing(true);
     try {
-      await api("/api/auth/organization/accept-invitation", { method: "POST", body: JSON.stringify({ invitationId: target.id }) });
-      const me = await api<{ user: SessionUser }>("/api/me");
-      setUser(me.user);
-      toast.success(`Welcome to ${target.organizationName}.`);
+      if (decision === "accept") {
+        await api("/api/auth/organization/accept-invitation", { method: "POST", body: JSON.stringify({ invitationId: target.id }) });
+        const me = await api<{ user: SessionUser }>("/api/me");
+        setUser(me.user);
+        toast.success(`Welcome to ${target.organizationName}.`);
+      } else {
+        await api("/api/auth/organization/reject-invitation", { method: "POST", body: JSON.stringify({ invitationId: target.id }) });
+        toast.success("Invitation declined.");
+      }
       navigate({ to: "/" });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "We couldn't accept the invitation.");
+      toast.error(err instanceof ApiError ? err.message : decision === "accept" ? "We couldn't accept the invitation." : "We couldn't decline the invitation.");
     } finally {
       setActing(false);
     }
   }
 
-  async function decline(target: Invitation) {
-    setActing(true);
-    try {
-      await api("/api/auth/organization/reject-invitation", { method: "POST", body: JSON.stringify({ invitationId: target.id }) });
-      toast.success("Invitation declined.");
-      navigate({ to: "/" });
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "We couldn't decline the invitation.");
-    } finally {
-      setActing(false);
-    }
-  }
+
+
 
   async function signOut() {
     await api("/api/auth/sign-out", { method: "POST" }).catch(() => {});
@@ -143,25 +183,7 @@ export function AcceptInvitationPage() {
   }
 
   if (!user) {
-    return (
-      <AuthFrame title="You're invited." subline="Sign in or create an account with the invited email address to accept your invitation.">
-        <div className="inline-flex w-full rounded-full bg-secondary p-1" role="tablist" aria-label="Sign in or create account">
-          <button role="tab" aria-selected={tab === "signin"} onClick={() => setTab("signin")} className={`flex-1 rounded-full px-4 py-2.5 text-[15px] font-semibold transition-colors ${tab === "signin" ? "bg-card shadow-[var(--shadow)]" : "text-muted-foreground"}`}>Sign in</button>
-          <button role="tab" aria-selected={tab === "create"} onClick={() => setTab("create")} className={`flex-1 rounded-full px-4 py-2.5 text-[15px] font-semibold transition-colors ${tab === "create" ? "bg-card shadow-[var(--shadow)]" : "text-muted-foreground"}`}>Create account</button>
-        </div>
-        <div className="mt-4">
-          {tab === "signin" ? (
-            <LoginForm onAuthed={(authed) => setUser(authed)} />
-          ) : (
-            <CreateAccountForm onCreated={refreshAfterAuth} />
-          )}
-        </div>
-        <p className="mt-4 flex items-start gap-2 text-[12px] leading-snug text-muted-foreground">
-          <Mail className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          The invitation stays tied to the email address it was sent to. Use that one to accept.
-        </p>
-      </AuthFrame>
-    );
+    return <UnauthedFrame tab={tab} onTabChange={setTab} onAuthed={(authed) => setUser(authed)} onRefreshAfterAuth={refreshAfterAuth} />;
   }
 
   if (invitation.kind === "idle" || invitation.kind === "loading") {
@@ -173,18 +195,7 @@ export function AcceptInvitationPage() {
   }
 
   if (invitation.kind === "error") {
-    return (
-      <AuthFrame title="Invitation." subline={invitation.message}>
-        <div className="flex flex-col gap-3">
-          {invitation.mismatch && (
-            <Button className="h-11 w-full" onClick={signOut}>
-              <LogOut className="mr-2 h-4 w-4" /> Sign out and use the invited email
-            </Button>
-          )}
-          <button onClick={() => navigate({ to: "/" })} className="h-11 rounded-full border border-border text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground">Home</button>
-        </div>
-      </AuthFrame>
-    );
+    return <InvitationErrorFrame invitation={invitation} onSignOut={signOut} onHome={() => navigate({ to: "/" })} />;
   }
 
   const target = invitation.invitation;
@@ -202,10 +213,10 @@ export function AcceptInvitationPage() {
         </div>
         <p className="text-[12px] leading-snug text-muted-foreground">This invitation expires {formatDateTime(target.expiresAt)}. You'll join with the role above. Your campus admin can change it later.</p>
         <div className="flex flex-col gap-2">
-          <Button className="h-12 w-full text-[16px]" disabled={acting} onClick={() => accept(target)}>
+          <Button className="h-12 w-full text-[16px]" disabled={acting} onClick={() => respondToInvitation(target, "accept")}>
             {acting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Working…</> : <><Building2 className="mr-2 h-4 w-4" /> Accept invitation</>}
           </Button>
-          <button disabled={acting} onClick={() => decline(target)} className="h-11 rounded-full text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50">
+          <button disabled={acting} onClick={() => respondToInvitation(target, "decline")} className="h-11 rounded-full text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50">
             Decline invitation
           </button>
         </div>

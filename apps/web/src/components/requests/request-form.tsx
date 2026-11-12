@@ -37,6 +37,215 @@ function revokePreviews(items: Picked[]) {
   for (const item of items) URL.revokeObjectURL(item.preview);
 }
 
+function collectPicked(files: File[], currentCount: number): Picked[] {
+  const next: Picked[] = [];
+  for (const file of files) {
+    if (currentCount + next.length >= MAX_FILES) {
+      toast.warning(`You can attach up to ${MAX_FILES} images.`);
+      break;
+    }
+    if (!(MAX_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
+      toast.error(`"${file.name}" is not a supported image (JPEG, PNG or WebP).`);
+      continue;
+    }
+    if (file.size > MAX_SIZE) {
+      toast.error(`"${file.name}" is larger than ${Math.round(MAX_SIZE / (1024 * 1024))}MB.`);
+      continue;
+    }
+    next.push({ file, filename: file.name, mimeType: file.type, size: file.size, preview: URL.createObjectURL(file) });
+  }
+  return next;
+}
+
+async function uploadAttachments(requestId: string, items: Picked[]): Promise<string[]> {
+  const failures: string[] = [];
+  for (const item of items) {
+    try {
+      const init = await api<{ attachmentId: string; uploadUrl: string }>(`/api/requests/${requestId}/attachments/upload-url`, {
+        method: "POST",
+        body: JSON.stringify({ fileName: item.filename, mimeType: item.mimeType, sizeBytes: item.size }),
+      });
+      // Verified sink: uploadUrl is a server-generated presigned URL for the app's own
+      // object storage, returned by our API — not attacker-controlled.
+      const upload = await fetch(init.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": item.mimeType },
+        body: item.file,
+      });
+      if (!upload.ok) throw new Error(`Upload failed (${upload.status})`);
+      await api(`/api/requests/${requestId}/attachments/${init.attachmentId}/confirm`, { method: "POST" });
+    } catch {
+      failures.push(item.filename);
+    }
+  }
+  return failures;
+}
+
+function FieldError({ message, className }: { message?: string; className?: string }) {
+  if (!message) return null;
+  return <p className={cn("text-xs text-destructive", className)}>{message}</p>;
+}
+
+function IssueDetailsCard({ title, description, location, priority, errors, onTitleChange, onDescriptionChange, onLocationChange, onPriorityChange }: {
+  title: string;
+  description: string;
+  location: string;
+  priority: Priority;
+  errors: Record<string, string>;
+  onTitleChange: (v: string) => void;
+  onDescriptionChange: (v: string) => void;
+  onLocationChange: (v: string) => void;
+  onPriorityChange: (v: Priority) => void;
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-4 sm:p-5">
+        <p className="text-sm font-semibold">2. Describe the issue</p>
+        <div className="space-y-1.5">
+          <Label htmlFor="rf-title">Short title</Label>
+          <Input id="rf-title" placeholder="e.g. Power socket sparking in Room 214" value={title} onChange={(e) => onTitleChange(e.target.value)} maxLength={150} />
+          <FieldError message={errors.title} />
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="rf-desc">Detailed description</Label>
+            <span className="text-xs text-muted-foreground">{description.length}/3000</span>
+          </div>
+          <Textarea id="rf-desc" placeholder="What exactly is wrong? Since when? Any details that help the officer arrive prepared…" rows={5} value={description} onChange={(e) => onDescriptionChange(e.target.value)} maxLength={3000} />
+          <FieldError message={errors.description} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="rf-loc">Location</Label>
+            <Input id="rf-loc" placeholder="e.g. Science Block C, Room 214" value={location} onChange={(e) => onLocationChange(e.target.value)} maxLength={150} />
+            <FieldError message={errors.location} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Priority</Label>
+            <PriorityPicker value={priority} onChange={onPriorityChange} />
+            <p className="text-xs text-muted-foreground">Urgent = safety risk or major service outage.</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EvidenceSection({ picked, fileRef, onFiles, onRemove }: {
+  picked: Picked[];
+  fileRef: React.RefObject<HTMLInputElement | null>;
+  onFiles: (files: FileList | null) => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4 sm:p-5">
+        <p className="text-sm font-semibold">3. Evidence photos (optional)</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">Up to {MAX_FILES} images, max {Math.round(MAX_SIZE / (1024 * 1024))}MB each. A photo helps officers assess the fault.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {picked.map((p, i) => (
+            <div key={i} className="group relative h-20 w-20 overflow-hidden rounded-md border">
+              <img src={p.preview} alt={`Evidence ${i + 1}: ${p.filename}`} className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                className="pointer-coarse:opacity-100 absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                aria-label={`Remove ${p.filename}`}
+              >
+                <X className="h-5 w-5 text-white" />
+              </button>
+            </div>
+          ))}
+          {picked.length < MAX_FILES && (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+            >
+              <ImagePlus className="h-5 w-5" />
+              <span className="text-[10px]">Add photo</span>
+            </button>
+          )}
+          <input ref={fileRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(e) => onFiles(e.target.files)} aria-label="Upload evidence images" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SuccessScreen({ reference, onAnother, onTrack }: { reference: string; onAnother: () => void; onTrack: () => void }) {
+  return (
+    <Folio className="mx-auto max-w-lg px-6 py-12 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-soft">
+        <CheckCircle2 className="h-8 w-8 text-foreground" />
+      </div>
+      <h2 className="mt-5 text-2xl font-semibold">Request received.</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Your reference number is <span className="tabular-nums font-semibold text-foreground">{reference}</span>.
+        Keep it for follow-up. Administrators have been notified and will assign a maintenance officer.
+      </p>
+      <div className="mt-6 flex justify-center gap-3">
+        <Button variant="outline" onClick={onAnother}>
+          Submit another
+        </Button>
+        <Button onClick={onTrack}>Track my requests</Button>
+      </div>
+    </Folio>
+  );
+}
+
+function CategoryGrid({ categories, value, onChange, loading }: { categories: Category[]; value: string; onChange: (id: string) => void; loading: boolean }) {
+  if (loading) {
+    return <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>;
+  }
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Request category">
+      {categories.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          onClick={() => onChange(c.id)}
+          className={cn(
+            "flex flex-col items-center gap-1.5 rounded-md border p-3 text-center transition-all",
+            value === c.id ? "border-foreground bg-accent ring-1 ring-foreground" : "hover:border-foreground hover:bg-secondary"
+          )}
+          aria-pressed={value === c.id}
+        >
+          <span className={cn("flex h-8 w-8 items-center justify-center rounded-full", value === c.id ? "bg-night text-night-foreground" : "bg-secondary text-muted-foreground")}>
+            <CategoryIcon icon={c.icon} className="h-4 w-4" />
+          </span>
+          <span className="text-xs font-medium leading-tight">{c.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PriorityPicker({ value, onChange }: { value: Priority; onChange: (v: Priority) => void }) {
+  return (
+    <RadioGroup value={value} onValueChange={(v) => onChange(v as Priority)} className="grid grid-cols-4 gap-1.5">
+      {([
+        ["LOW", "Low"],
+        ["MEDIUM", "Medium"],
+        ["HIGH", "High"],
+        ["URGENT", "Urgent"],
+      ] as const).map(([val, label]) => (
+        <Label
+          key={val}
+          htmlFor={`prio-${val}`}
+          className={cn(
+            "flex cursor-pointer items-center justify-center rounded-md border p-2 text-xs font-medium transition-colors",
+            value === val ? "border-foreground bg-secondary text-foreground /50 dark:text-foreground" : "hover:bg-secondary"
+          )}
+        >
+          <RadioGroupItem id={`prio-${val}`} value={val} className="sr-only" />
+          {label}
+        </Label>
+      ))}
+    </RadioGroup>
+  );
+}
+
 export function RequestFormView() {
   const navigate = useViewNav();
   const { data: catData, loading: catLoading } = useFetch<{ categories: Category[] }>("/api/categories");
@@ -66,26 +275,19 @@ export function RequestFormView() {
     return Object.keys(e).length === 0;
   }
 
-  async function onFiles(files: FileList | null) {
+  function onFiles(files: FileList | null) {
     if (!files?.length) return;
-    const next: Picked[] = [];
-    for (const file of Array.from(files)) {
-      if (picked.length + next.length >= MAX_FILES) {
-        toast.warning(`You can attach up to ${MAX_FILES} images.`);
-        break;
-      }
-      if (!(MAX_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
-        toast.error(`"${file.name}" is not a supported image (JPEG, PNG or WebP).`);
-        continue;
-      }
-      if (file.size > MAX_SIZE) {
-        toast.error(`"${file.name}" is larger than ${Math.round(MAX_SIZE / (1024 * 1024))}MB.`);
-        continue;
-      }
-      next.push({ file, filename: file.name, mimeType: file.type, size: file.size, preview: URL.createObjectURL(file) });
-    }
+    const next = collectPicked(Array.from(files), picked.length);
     if (next.length) setPicked((p) => [...p, ...next]);
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function removePickedAt(index: number) {
+    setPicked((arr) => {
+      const [removed] = arr.splice(index, 1);
+      if (removed) URL.revokeObjectURL(removed.preview);
+      return [...arr];
+    });
   }
 
   async function submit(ev: React.FormEvent) {
@@ -107,24 +309,7 @@ export function RequestFormView() {
         }),
       });
 
-      const failures: string[] = [];
-      for (const item of picked) {
-        try {
-          const init = await api<{ attachmentId: string; uploadUrl: string }>(`/api/requests/${res.request.id}/attachments/upload-url`, {
-            method: "POST",
-            body: JSON.stringify({ fileName: item.filename, mimeType: item.mimeType, sizeBytes: item.size }),
-          });
-          const upload = await fetch(init.uploadUrl, {
-            method: "PUT",
-            headers: { "Content-Type": item.mimeType },
-            body: item.file,
-          });
-          if (!upload.ok) throw new Error(`Upload failed (${upload.status})`);
-          await api(`/api/requests/${res.request.id}/attachments/${init.attachmentId}/confirm`, { method: "POST" });
-        } catch {
-          failures.push(item.filename);
-        }
-      }
+      const failures = await uploadAttachments(res.request.id, picked);
 
       revokePreviews(picked);
       setPicked([]);
@@ -144,22 +329,11 @@ export function RequestFormView() {
 
   if (submittedRef) {
     return (
-      <Folio className="mx-auto max-w-lg px-6 py-12 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-soft">
-          <CheckCircle2 className="h-8 w-8 text-foreground" />
-        </div>
-        <h2 className="mt-5 text-2xl font-semibold">Request received.</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your reference number is <span className="tabular-nums font-semibold text-foreground">{submittedRef}</span>.
-          Keep it for follow-up. Administrators have been notified and will assign a maintenance officer.
-        </p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Button variant="outline" onClick={() => { setSubmittedRef(null); setTitle(""); setDescription(""); setLocation(""); setPicked([]); setPriority("MEDIUM"); }}>
-            Submit another
-          </Button>
-          <Button onClick={() => navigate("requests")}>Track my requests</Button>
-        </div>
-      </Folio>
+      <SuccessScreen
+        reference={submittedRef}
+        onAnother={() => { setSubmittedRef(null); setTitle(""); setDescription(""); setLocation(""); setPicked([]); setPriority("MEDIUM"); }}
+        onTrack={() => navigate("requests")}
+      />
     );
   }
 
@@ -175,117 +349,24 @@ export function RequestFormView() {
       <Card>
         <CardContent className="p-4 sm:p-5">
           <p className="text-sm font-semibold">1. What kind of problem is it?</p>
-          {catLoading ? (
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
-          ) : (
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Request category">
-              {(catData?.categories || []).map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setCategoryId(c.id)}
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 rounded-md border p-3 text-center transition-all",
-                    categoryId === c.id
-                      ? "border-foreground bg-accent ring-1 ring-foreground"
-                      : "hover:border-foreground hover:bg-secondary"
-                  )}
-                  aria-pressed={categoryId === c.id}
-                >
-                  <span className={cn("flex h-8 w-8 items-center justify-center rounded-full", categoryId === c.id ? "bg-night text-night-foreground" : "bg-secondary text-muted-foreground")}>
-                    <CategoryIcon icon={c.icon} className="h-4 w-4" />
-                  </span>
-                  <span className="text-xs font-medium leading-tight">{c.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {errors.categoryId && <p className="mt-2 text-xs text-destructive">{errors.categoryId}</p>}
+          <CategoryGrid categories={catData?.categories ?? []} value={categoryId} onChange={setCategoryId} loading={catLoading} />
+          <FieldError message={errors.categoryId} className="mt-2" />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="space-y-4 p-4 sm:p-5">
-          <p className="text-sm font-semibold">2. Describe the issue</p>
-          <div className="space-y-1.5">
-            <Label htmlFor="rf-title">Short title</Label>
-            <Input id="rf-title" placeholder="e.g. Power socket sparking in Room 214" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={150} />
-            {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="rf-desc">Detailed description</Label>
-              <span className="text-xs text-muted-foreground">{description.length}/3000</span>
-            </div>
-            <Textarea id="rf-desc" placeholder="What exactly is wrong? Since when? Any details that help the officer arrive prepared…" rows={5} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={3000} />
-            {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="rf-loc">Location</Label>
-              <Input id="rf-loc" placeholder="e.g. Science Block C, Room 214" value={location} onChange={(e) => setLocation(e.target.value)} maxLength={150} />
-              {errors.location && <p className="text-xs text-destructive">{errors.location}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Priority</Label>
-              <RadioGroup value={priority} onValueChange={(v) => setPriority(v as Priority)} className="grid grid-cols-4 gap-1.5">
-                {([
-                  ["LOW", "Low"],
-                  ["MEDIUM", "Medium"],
-                  ["HIGH", "High"],
-                  ["URGENT", "Urgent"],
-                ] as const).map(([val, label]) => (
-                  <Label
-                    key={val}
-                    htmlFor={`prio-${val}`}
-                    className={cn(
-                      "flex cursor-pointer items-center justify-center rounded-md border p-2 text-xs font-medium transition-colors",
-                      priority === val ? "border-foreground bg-secondary text-foreground /50 dark:text-foreground" : "hover:bg-secondary"
-                    )}
-                  >
-                    <RadioGroupItem id={`prio-${val}`} value={val} className="sr-only" />
-                    {label}
-                  </Label>
-                ))}
-              </RadioGroup>
-              <p className="text-xs text-muted-foreground">Urgent = safety risk or major service outage.</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <IssueDetailsCard
+        title={title}
+        description={description}
+        location={location}
+        priority={priority}
+        errors={errors}
+        onTitleChange={setTitle}
+        onDescriptionChange={setDescription}
+        onLocationChange={setLocation}
+        onPriorityChange={setPriority}
+      />
 
-      <Card>
-        <CardContent className="p-4 sm:p-5">
-          <p className="text-sm font-semibold">3. Evidence photos (optional)</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">Up to {MAX_FILES} images, max {Math.round(MAX_SIZE / (1024 * 1024))}MB each. A photo helps officers assess the fault.</p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            {picked.map((p, i) => (
-              <div key={i} className="group relative h-20 w-20 overflow-hidden rounded-md border">
-                <img src={p.preview} alt={`Evidence ${i + 1}: ${p.filename}`} className="h-full w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => setPicked((arr) => { const [removed] = arr.splice(i, 1); if (removed) URL.revokeObjectURL(removed.preview); return [...arr]; })}
-                  className="pointer-coarse:opacity-100 absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-                  aria-label={`Remove ${p.filename}`}
-                >
-                  <X className="h-5 w-5 text-white" />
-                </button>
-              </div>
-            ))}
-            {picked.length < MAX_FILES && (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
-              >
-                <ImagePlus className="h-5 w-5" />
-                <span className="text-[10px]">Add photo</span>
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(e) => onFiles(e.target.files)} aria-label="Upload evidence images" />
-          </div>
-        </CardContent>
-      </Card>
+      <EvidenceSection picked={picked} fileRef={fileRef} onFiles={onFiles} onRemove={removePickedAt} />
 
       <div className="flex items-center justify-end gap-3">
         <p className="mr-auto hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">

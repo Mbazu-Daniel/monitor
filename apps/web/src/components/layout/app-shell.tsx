@@ -45,18 +45,17 @@ const NAV_ITEMS: NavItem[] = [
 
 const DESK_VIEWS: ViewKey[] = ["dashboard", "board", "requests", "new-request"];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, sidebarOpen, setSidebarOpen } = useAppStore();
-  const navigate = useViewNav();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const view = (user?.organizationSlug ? viewFromPath(pathname, user.organizationSlug) : null) ?? "dashboard";
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [badgeTick, setBadgeTick] = useState(0);
-  const { data: notifData } = useFetch<NotificationsResponse>("/api/notifications?pageSize=1", {
-    pollMs: 60000,
-    deps: [badgeTick],
-  });
+function currentLabelFor(items: NavItem[], view: ViewKey): string {
+  const found = items.find((i) => i.view === view)?.label;
+  if (found) return found;
+  if (view === "request-detail") return "Request";
+  if (view === "settings") return "Settings";
+  if (view === "students") return "Students";
+  return "Dashboard";
+}
 
+function useRealtimeNotifications() {
+  const [badgeTick, setBadgeTick] = useState(0);
   useEffect(() => {
     const refresh = () => setBadgeTick((t) => t + 1);
     window.addEventListener(NOTIFICATIONS_REFRESH, refresh);
@@ -67,44 +66,80 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       source.close();
     };
   }, []);
+  return badgeTick;
+}
+
+function NavItemButton({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate: () => void }) {
+  return (
+    <button
+      onClick={onNavigate}
+      className={cn(
+        "group flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all duration-150",
+        active
+          ? "bg-night text-night-foreground shadow-[var(--shadow)]"
+          : "text-foreground/70 hover:bg-secondary hover:text-foreground"
+      )}
+      aria-current={active ? "page" : undefined}
+    >
+      <item.icon className={cn("h-[17px] w-[17px] shrink-0 transition-colors", active ? "text-night-foreground" : "text-muted-foreground group-hover:text-foreground")} />
+      <span className="truncate">{item.label}</span>
+    </button>
+  );
+}
+
+function NavGroup({ label, items, view, onNavigate }: { label: string; items: NavItem[]; view: ViewKey; onNavigate: (view: ViewKey) => void }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <p className="px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">{label}</p>
+      <div className="flex flex-col gap-0.5">
+        {items.map((item) => (
+          <NavItemButton key={item.key + item.label} item={item} active={item.view === view} onNavigate={() => onNavigate(item.view)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NotificationBell({ unread, expanded, onOpen }: { unread: number; expanded: boolean; onOpen: () => void }) {
+  return (
+    <Button variant="ghost" size="icon" className="relative" onClick={onOpen} aria-label={`Notifications (${unread} unread)`} aria-expanded={expanded}>
+      <Bell className="h-5 w-5" />
+      {unread > 0 && (
+        <span
+          key={unread}
+          className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 motion-safe:animate-fade-up items-center justify-center rounded-full bg-[var(--cta)] px-1 text-[10px] font-bold text-white"
+        >
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
+    </Button>
+  );
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const { user, sidebarOpen, setSidebarOpen } = useAppStore();
+  const navigate = useViewNav();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const view = (user?.organizationSlug ? viewFromPath(pathname, user.organizationSlug) : null) ?? "dashboard";
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const badgeTick = useRealtimeNotifications();
+  const { data: notifData } = useFetch<NotificationsResponse>("/api/notifications?pageSize=1", {
+    pollMs: 60000,
+    deps: [badgeTick],
+  });
 
   if (!user) return null;
 
   const items = NAV_ITEMS.filter((i) => (user.role ? i.roles.includes(user.role) : false));
   const desk = items.filter((i) => DESK_VIEWS.includes(i.view));
   const manage = items.filter((i) => !DESK_VIEWS.includes(i.view));
-  const currentLabel = items.find((i) => i.view === view)?.label ?? (view === "request-detail" ? "Request" : view === "settings" ? "Settings" : view === "students" ? "Students" : "Dashboard");
+  const currentLabel = currentLabelFor(items, view);
 
-  const railGroup = (label: string, list: typeof items) => (
-    <div key={label}>
-      <p className="px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">{label}</p>
-      <div className="flex flex-col gap-0.5">
-        {list.map((item) => {
-          const isActive = item.view === view;
-          return (
-            <button
-              key={item.key + item.label}
-              onClick={() => navigate(item.view)}
-              className={cn(
-                "group flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all duration-150",
-                isActive
-                  ? "bg-night text-night-foreground shadow-[var(--shadow)]"
-                  : "text-foreground/70 hover:bg-secondary hover:text-foreground"
-              )}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <item.icon className={cn("h-[17px] w-[17px] shrink-0 transition-colors", isActive ? "text-night-foreground" : "text-muted-foreground group-hover:text-foreground")} />
-              <span className="truncate">{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
   const navList = (
     <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-4" aria-label="Main navigation">
-      {railGroup("Desk", desk)}
-      {manage.length > 0 && railGroup("Manage", manage)}
+      <NavGroup label="Desk" items={desk} view={view} onNavigate={navigate} />
+      <NavGroup label="Manage" items={manage} view={view} onNavigate={navigate} />
     </nav>
   );
 
@@ -145,17 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-1.5 sm:gap-2">
               <ThemeToggle />
 
-              <Button variant="ghost" size="icon" className="relative" onClick={() => setNotificationsOpen(true)} aria-label={`Notifications (${notifData?.unread || 0} unread)`} aria-expanded={notificationsOpen}>
-                <Bell className="h-5 w-5" />
-                {notifData && notifData.unread > 0 && (
-                  <span
-                    key={notifData.unread}
-                    className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 motion-safe:animate-fade-up items-center justify-center rounded-full bg-[var(--cta)] px-1 text-[10px] font-bold text-white"
-                  >
-                    {notifData.unread > 99 ? "99+" : notifData.unread}
-                  </span>
-                )}
-              </Button>
+              <NotificationBell unread={notifData?.unread ?? 0} expanded={notificationsOpen} onOpen={() => setNotificationsOpen(true)} />
               <NavbarAccount />
             </div>
           </div>

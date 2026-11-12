@@ -12,6 +12,8 @@ import {
 } from "@/components/icons";
 import { api, ApiError } from "@/lib/client";
 import { useAppStore } from "@/stores/app-store";
+import { campusCodeFromName } from "@mivacampus/contracts";
+import { validateOnboardingStep, type OnboardingForm } from "@/lib/onboarding";
 import type { SessionUser } from "@/types";
 
 const STEPS = ["Your campus", "Admin account", "Starting categories", "Review & create"] as const;
@@ -31,27 +33,380 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
 }
 
-export function OnboardingPage() {
-  const navigate = useNavigate();
+
+function RailStep({ n, label, state }: { n: number; label: string; state: "done" | "current" | "upcoming" }) {
+  return (
+    <li className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${state === "current" ? "border-[#ffb59e]/40 bg-[#ffb59e]/10" : "border-[#fdfaf6]/15 bg-[#fdfaf6]/5"}`}>
+      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${state === "done" ? "bg-[#c94a1c] text-[#fdfaf6]" : state === "current" ? "border border-[#ffb59e] text-[#ffb59e]" : "border border-[#fdfaf6]/30 text-[#fdfaf6]/60"}`}>
+        {state === "done" ? <Check className="h-4 w-4" /> : n}
+      </span>
+      <span className={`text-sm ${state === "upcoming" ? "text-[#fdfaf6]/50" : "text-[#fdfaf6]"}`}>{label}</span>
+    </li>
+  );
+}
+
+function StepsRail({ step, done }: { step: number; done: boolean }) {
+  return (
+    <ol className="mt-8 grid gap-2 sm:grid-cols-2 lg:mt-12 lg:grid-cols-1 lg:gap-4">
+      {STEPS.map((label, i) => {
+        const n = i + 1;
+        const state = done || n < step ? "done" : n === step ? "current" : "upcoming";
+        return <RailStep key={label} n={n} label={label} state={state} />;
+      })}
+    </ol>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-12 ">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <p className="text-sm text-muted-foreground">Checking your session…</p>
+    </div>
+  );
+}
+
+function AuthedScreen({ me, onContinue, onSignOut }: { me: SessionUser; onContinue: () => void; onSignOut: () => void }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-10">
+      <ShieldCheck className="mx-auto h-10 w-10 text-foreground" />
+      <h2 className="mt-4 text-xl font-semibold">You're already signed in</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Onboarding creates a brand-new campus. Sign in as <span className="font-medium text-foreground">{me.name}</span>, or sign out first if you're setting up a different campus.
+      </p>
+      <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+        <Button onClick={onContinue}>Open your dashboard <ArrowRight className="ml-2 h-4 w-4" /></Button>
+        <Button variant="outline" onClick={onSignOut}>Sign out & start fresh</Button>
+      </div>
+    </div>
+  );
+}
+
+function DoneScreen({ done, copied, onCopy, onContinue }: {
+  done: { subdomain: string; code: string; orgName: string };
+  copied: "subdomain" | "code" | null;
+  onCopy: (value: string, kind: "subdomain" | "code") => void;
+  onContinue: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
+      <CheckCircle2 className="h-12 w-12 text-foreground" />
+      <h2 className="mt-4 text-2xl font-semibold">{done.orgName} is live</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Your campus workspace is ready. Staff join with the campus code — they'll enter it when they create their accounts.
+      </p>
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
+          <p className="text-xs font-semibold text-muted-foreground">Subdomain</p>
+          <p className="mt-1 break-all text-lg font-bold tabular-nums">{done.subdomain}</p>
+          <Button variant="outline" size="sm" className="mt-3 h-8 text-xs" onClick={() => onCopy(done.subdomain, "subdomain")}>
+            {copied === "subdomain" ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy"}
+          </Button>
+        </div>
+        <div className="rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
+          <p className="text-xs font-semibold text-muted-foreground">Campus code</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums tracking-[0.08em]">{done.code}</p>
+          <Button variant="outline" size="sm" className="mt-3 h-8 text-xs" onClick={() => onCopy(done.code, "code")}>
+            {copied === "code" ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy code"}
+          </Button>
+        </div>
+      </div>
+      <p className="mt-3 text-center text-xs text-muted-foreground">Staff and student numbers start with the code — e.g. {done.code}/0001.</p>
+      <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
+        <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> You're signed in as the first <span className="font-medium text-foreground">&nbsp;administrator</span>.</li>
+        <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> Staff who sign up with this code join your campus automatically.</li>
+        <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> You can create officer accounts and manage users from Manage Users. Categories live on the Categories page.</li>
+      </ul>
+      <Button className="mt-6 w-full" size="lg" onClick={onContinue}>
+        Open your dashboard <ArrowRight className="ml-2 h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, onCodeChange }: {
+  form: OnboardingForm;
+  subdomain: string;
+  code: string;
+  errors: Record<string, string>;
+  onSet: (k: keyof OnboardingForm, v: string) => void;
+  onSubdomainChange: (v: string) => void;
+  onCodeChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <h2 className="text-xl font-semibold">Name your campus</h2>
+      <p className="mt-1 text-sm text-muted-foreground">This is the university or campus whose faults you'll be tracking.</p>
+      <div className="mt-5 space-y-1.5">
+        <Label htmlFor="ob-org">Campus or university name</Label>
+        <Input id="ob-org" placeholder="e.g. Example University" value={form.organizationName} onChange={(e) => onSet("organizationName", e.target.value)} autoFocus />
+        {errors.organizationName && <p className="text-xs text-destructive">{errors.organizationName}</p>}
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="ob-subdomain">Subdomain</Label>
+          <Input id="ob-subdomain" placeholder="e.g. example-university" value={subdomain} onChange={(e) => onSubdomainChange(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" />
+          {errors.subdomain && <p className="text-xs text-destructive">{errors.subdomain}</p>}
+          <p className="text-[11px] text-muted-foreground">The campus address label.</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ob-code">Campus code</Label>
+          <Input id="ob-code" placeholder="e.g. EU" value={code} onChange={(e) => onCodeChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={10} className="font-mono uppercase" />
+          {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
+          <p className="text-[11px] text-muted-foreground">Staff and student numbers start with the code — e.g. {code || "MOU"}/0001.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminPasswordField({ id, value, error, showPwd, onTogglePwd, onChange }: {
+  id: string;
+  value: string;
+  error?: string;
+  showPwd: boolean;
+  onTogglePwd: () => void;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>Password</Label>
+      <div className="relative">
+        <Input id={id} type={showPwd ? "text" : "password"} placeholder="8+ characters, letters and numbers" value={value} onChange={(e) => onChange(e.target.value)} autoComplete="new-password" className="pr-10" />
+        <button type="button" aria-label={showPwd ? "Hide password" : "Show password"} onClick={onTogglePwd} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+          {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function AdminStep({ form, errors, showPwd, onTogglePwd, onSet }: {
+  form: OnboardingForm;
+  errors: Record<string, string>;
+  showPwd: boolean;
+  onTogglePwd: () => void;
+  onSet: (k: keyof OnboardingForm, v: string) => void;
+}) {
+  return (
+    <div>
+      <h2 className="text-xl font-semibold">Create the administrator account</h2>
+      <p className="mt-1 text-sm text-muted-foreground">This is you, the first admin for {form.organizationName.trim() || "your campus"}. You can add more admins later.</p>
+      <div className="mt-5 space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="ob-name">Full name</Label>
+          <Input id="ob-name" placeholder="e.g. Ada Obi" value={form.adminName} onChange={(e) => onSet("adminName", e.target.value)} autoFocus />
+          {errors.adminName && <p className="text-xs text-destructive">{errors.adminName}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ob-email">Email address</Label>
+          <Input id="ob-email" type="email" placeholder="you@university.edu" value={form.adminEmail} onChange={(e) => onSet("adminEmail", e.target.value)} autoComplete="email" />
+          {errors.adminEmail && <p className="text-xs text-destructive">{errors.adminEmail}</p>}
+        </div>
+        <AdminPasswordField id="ob-password" value={form.adminPassword} error={errors.adminPassword} showPwd={showPwd} onTogglePwd={onTogglePwd} onChange={(v) => onSet("adminPassword", v)} />
+        <div className="space-y-1.5">
+          <Label htmlFor="ob-dept">Department or unit <span className="text-muted-foreground">(optional)</span></Label>
+          <Input id="ob-dept" placeholder="e.g. Facilities" value={form.adminDepartment} onChange={(e) => onSet("adminDepartment", e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CategoriesStep({ selected, customs, customName, errors, onTogglePreset, onCustomNameChange, onAddCustom, onRemoveCustom, selectedCount }: {
+  selected: string[];
+  customs: string[];
+  customName: string;
+  errors: Record<string, string>;
+  onTogglePreset: (name: string) => void;
+  onCustomNameChange: (v: string) => void;
+  onAddCustom: () => void;
+  onRemoveCustom: (name: string) => void;
+  selectedCount: number;
+}) {
+  return (
+    <div>
+      <h2 className="text-xl font-semibold">Pick your starting categories</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Staff and students pick one of these when reporting a fault. You can rename, reorder or add more later.</p>
+      {errors.categories && <p className="mt-2 text-xs text-destructive">{errors.categories}</p>}
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {PRESETS.map((preset) => {
+          const active = selected.includes(preset.name);
+          const Icon = preset.icon;
+          return (
+            <button
+              key={preset.name}
+              type="button"
+              onClick={() => onTogglePreset(preset.name)}
+              aria-pressed={active}
+              className={`flex items-start gap-2.5 rounded-md border p-3 text-left transition-colors ${active ? "border-[#ffb59e] bg-[#ffb59e]/10" : "hover:border-[#fdfaf6]/40"}`}
+            >
+              <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${active ? "text-[#e8602b]" : "text-muted-foreground"}`} />
+              <span>
+                <span className="block text-sm font-semibold leading-tight">{preset.name}</span>
+                <span className="mt-1 line-clamp-2 block text-xs leading-snug text-muted-foreground">{preset.description}</span>
+              </span>
+              {active && <Check className="ml-auto h-4 w-4 shrink-0 text-[#c94a1c]" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {customs.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {customs.map((name) => (
+            <li key={name} className="flex items-center gap-1.5 rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium">
+              {name}
+              <button type="button" aria-label={`Remove ${name}`} onClick={() => onRemoveCustom(name)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 flex gap-2">
+        <Input placeholder="Add another category, e.g. Lift & Escalator" value={customName} onChange={(e) => onCustomNameChange(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onAddCustom())} className="h-10" />
+        <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={onAddCustom} aria-label="Add category">
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">{selectedCount} selected</p>
+    </div>
+  );
+}
+
+function ReviewStep({ form, subdomain, code, categories }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[] }) {
+  return (
+    <div>
+      <h2 className="text-xl font-semibold">Review & create</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Everything lands together: one campus, one admin, your chosen categories.</p>
+      <dl className="mt-5 divide-y divide-border rounded-2xl border border-border">
+        <div className="flex items-start justify-between gap-4 p-4">
+          <dt className="text-sm font-medium text-muted-foreground">Campus</dt>
+          <dd className="text-right text-sm font-semibold">{form.organizationName.trim()}</dd>
+        </div>
+        <div className="flex items-start justify-between gap-4 p-4">
+          <dt className="text-sm font-medium text-muted-foreground">Subdomain</dt>
+          <dd className="text-right text-sm font-semibold tabular-nums">{subdomain}</dd>
+        </div>
+        <div className="flex items-start justify-between gap-4 p-4">
+          <dt className="text-sm font-medium text-muted-foreground">Campus code</dt>
+          <dd className="text-right text-sm font-semibold tabular-nums">{code}</dd>
+        </div>
+        <div className="flex items-start justify-between gap-4 p-4">
+          <dt className="text-sm font-medium text-muted-foreground">Administrator</dt>
+          <dd className="text-right text-sm font-semibold">{form.adminName.trim()}<br /><span className="text-xs font-normal text-muted-foreground">{form.adminEmail.trim()}</span></dd>
+        </div>
+        <div className="p-4">
+          <dt className="text-sm font-medium text-muted-foreground">Starting categories ({categories.length})</dt>
+          <dd className="mt-2 flex flex-wrap gap-1.5">
+            {categories.map((c) => (
+              <span key={c.name} className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">{c.name}</span>
+            ))}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function BrandRail({ step, done }: { step: number; done: boolean }) {
+  return (
+    <div className="relative flex flex-col justify-between overflow-hidden bg-[#2f2f30] px-6 py-8 text-[#fdfaf6] lg:w-[42%] lg:px-12 lg:py-14">
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <span className="mark block h-11 w-11" aria-hidden />
+          <div>
+            <p className="wordmark text-[20px] leading-tight text-[#fdfaf6]">mivacampus</p>
+            <p className="text-sm text-[#fdfaf6]/60">Campus onboarding</p>
+          </div>
+        </div>
+
+        <div className="mt-8 lg:mt-14">
+          <p className="tabular-nums text-xs font-bold text-[#ffb59e]">Step {Math.min(step, 4)} of 4</p>
+          <h1 className="mt-3 max-w-md text-[32px] font-semibold leading-[1.02] tracking-[-0.03em] text-[#fdfaf6]">
+            Set up your campus in a few minutes.
+          </h1>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-[#fdfaf6]/70">
+            Create your university's workspace, its first administrator account and the categories staff will report against. Then share your campus code with everyone.
+          </p>
+        </div>
+
+        <StepsRail step={step} done={done} />
+      </div>
+
+      <div className="relative mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[#fdfaf6]/65 lg:mt-10">
+        <span className="flex items-center gap-1.5"><ClipboardList className="h-4 w-4" /> Full audit trail</span>
+        <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> You're the first admin</span>
+        <span className="flex items-center gap-1.5"><BellRing className="h-4 w-4" /> Your campus, your data</span>
+      </div>
+    </div>
+  );
+}
+
+function FormCard({ serverError, step, stepNode, loading, onContinue, onBack, onCreate, onHome }: {
+  serverError: string | null;
+  step: number;
+  stepNode: React.ReactNode;
+  loading: boolean;
+  onContinue: () => void;
+  onBack: () => void;
+  onCreate: () => void;
+  onHome: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+      {serverError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{serverError}</AlertDescription>
+        </Alert>
+      )}
+
+      {stepNode}
+
+      <div className="mt-6 flex items-center justify-between gap-3">
+        {step > 1 ? (
+          <Button variant="ghost" onClick={onBack} disabled={loading}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        ) : (
+          <Button variant="ghost" onClick={onHome}><ArrowLeft className="mr-2 h-4 w-4" /> Home</Button>
+        )}
+        {step < 4 ? (
+          <Button onClick={onContinue}>Continue <ArrowRight className="ml-2 h-4 w-4" /></Button>
+        ) : (
+          <Button onClick={onCreate} disabled={loading}>
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating campus…</> : "Create campus"}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SessionGate({ session, me, done, copied, onCopy, onAuthedContinue, onDoneContinue, onSignOut, children }: {
+  session: "loading" | "guest" | "authed";
+  me: SessionUser | null;
+  done: { subdomain: string; code: string; orgName: string } | null;
+  copied: "subdomain" | "code" | null;
+  onCopy: (value: string, kind: "subdomain" | "code") => void;
+  onAuthedContinue: () => void;
+  onDoneContinue: () => void;
+  onSignOut: () => void;
+  children: React.ReactNode;
+}) {
+  if (session === "loading") return <LoadingScreen />;
+  if (session === "authed" && me) return <AuthedScreen me={me} onContinue={onAuthedContinue} onSignOut={onSignOut} />;
+  if (done) return <DoneScreen done={done} copied={copied} onCopy={onCopy} onContinue={onDoneContinue} />;
+  return <>{children}</>;
+}
+
+function useOnboardingSession() {
   const setUser = useAppStore((s) => s.setUser);
   const setAuthChecked = useAppStore((s) => s.setAuthChecked);
-
   const [session, setSession] = useState<"loading" | "guest" | "authed">("loading");
   const [me, setMe] = useState<SessionUser | null>(null);
-
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ organizationName: "", subdomain: "", code: "", adminName: "", adminEmail: "", adminPassword: "", adminDepartment: "" });
-  const [subdomainTouched, setSubdomainTouched] = useState(false);
-  const [codeTouched, setCodeTouched] = useState(false);
-  const [showPwd, setShowPwd] = useState(false);
-  const [selected, setSelected] = useState<string[]>(["Electrical Fault", "Plumbing & Water", "Internet & Network"]);
-  const [customs, setCustoms] = useState<string[]>([]);
-  const [customName, setCustomName] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState<{ subdomain: string; code: string; orgName: string } | null>(null);
-  const [copied, setCopied] = useState<"subdomain" | "code" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,16 +425,91 @@ export function OnboardingPage() {
     };
   }, []);
 
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  function codeFromName(name: string): string {
-    const words = name.trim().split(/[^A-Za-z0-9]+/).filter(Boolean);
-    const initials = words.map((w) => w[0]!.toUpperCase()).join("");
-    if (initials.length >= 2) return initials.slice(0, 10);
-    const compact = name.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    return compact ? compact.slice(0, 4) : "";
+  return { session, me, setUser, setAuthChecked };
+}
+
+function SelectStep({ step, form, subdomain, code, errors, showPwd, selected, customs, customName, categoryPayload, onSet, onSubdomainChange, onCodeChange, onTogglePreset, onCustomNameChange, onAddCustom, onRemoveCustom, onTogglePwd }: {
+  step: number;
+  form: OnboardingForm;
+  subdomain: string;
+  code: string;
+  errors: Record<string, string>;
+  showPwd: boolean;
+  selected: string[];
+  customs: string[];
+  customName: string;
+  categoryPayload: { name: string; description: string; icon: string }[];
+  onSet: (k: keyof OnboardingForm, v: string) => void;
+  onSubdomainChange: (v: string) => void;
+  onCodeChange: (v: string) => void;
+  onTogglePreset: (name: string) => void;
+  onCustomNameChange: (v: string) => void;
+  onAddCustom: () => void;
+  onRemoveCustom: (name: string) => void;
+  onTogglePwd: () => void;
+}) {
+  if (step === 1) {
+    return <CampusStep form={form} subdomain={subdomain} code={code} errors={errors} onSet={onSet} onSubdomainChange={onSubdomainChange} onCodeChange={onCodeChange} />;
   }
+  if (step === 2) {
+    return <AdminStep form={form} errors={errors} showPwd={showPwd} onTogglePwd={onTogglePwd} onSet={onSet} />;
+  }
+  if (step === 3) {
+    return (
+      <CategoriesStep
+        selected={selected}
+        customs={customs}
+        customName={customName}
+        errors={errors}
+        onTogglePreset={onTogglePreset}
+        onCustomNameChange={onCustomNameChange}
+        onAddCustom={onAddCustom}
+        onRemoveCustom={onRemoveCustom}
+        selectedCount={categoryPayload.length}
+      />
+    );
+  }
+  return <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} />;
+}
+
+async function createCampus({ form, subdomain, code, categories }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[] }) {
+  await api("/api/auth/sign-up/email", {
+    method: "POST",
+    body: JSON.stringify({ name: form.adminName.trim(), email: form.adminEmail.trim(), password: form.adminPassword }),
+  });
+  return api<{ id: string; name: string; slug: string; code: string }>("/api/organizations", {
+    method: "POST",
+    body: JSON.stringify({
+      name: form.organizationName.trim(),
+      slug: subdomain,
+      code,
+      categories,
+      ...(form.adminDepartment.trim() ? { department: form.adminDepartment.trim() } : {}),
+    }),
+  });
+}
+
+export function OnboardingPage() {
+  const navigate = useNavigate();
+  const { session, me, setUser, setAuthChecked } = useOnboardingSession();
+
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState<OnboardingForm>({ organizationName: "", subdomain: "", code: "", adminName: "", adminEmail: "", adminPassword: "", adminDepartment: "" });
+  const [subdomainTouched, setSubdomainTouched] = useState(false);
+  const [codeTouched, setCodeTouched] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [selected, setSelected] = useState<string[]>(["Electrical Fault", "Plumbing & Water", "Internet & Network"]);
+  const [customs, setCustoms] = useState<string[]>([]);
+  const [customName, setCustomName] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState<{ subdomain: string; code: string; orgName: string } | null>(null);
+  const [copied, setCopied] = useState<"subdomain" | "code" | null>(null);
+
+  const set = (k: keyof OnboardingForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const subdomain = subdomainTouched ? form.subdomain : slugify(form.organizationName);
-  const code = codeTouched ? form.code : codeFromName(form.organizationName);
+  const code = codeTouched ? form.code : campusCodeFromName(form.organizationName);
 
   const categoryPayload = useMemo(
     () => [
@@ -106,19 +536,7 @@ export function OnboardingPage() {
   }
 
   function validateStep(current: number): boolean {
-    const e: Record<string, string> = {};
-    if (current === 1) {
-      if (form.organizationName.trim().length < 2) e.organizationName = "Enter your campus or university name.";
-      if (!/^[a-z0-9](-?[a-z0-9])*$/.test(subdomain) || subdomain.length < 2) e.subdomain = "Subdomain uses lowercase letters, numbers and dashes (2+ characters).";
-      if (!/^[A-Z0-9]{2,10}$/.test(code)) e.code = "Campus code is 2 to 10 letters and numbers.";
-    } else if (current === 2) {
-      if (form.adminName.trim().length < 2) e.adminName = "Please enter your full name.";
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.adminEmail.trim())) e.adminEmail = "Enter a valid email address.";
-      if (form.adminPassword.length < 8) e.adminPassword = "Password must be at least 8 characters with letters and numbers.";
-      else if (!/[A-Za-z]/.test(form.adminPassword) || !/[0-9]/.test(form.adminPassword)) e.adminPassword = "Password must be at least 8 characters with letters and numbers.";
-    } else if (current === 3) {
-      if (categoryPayload.length === 0) e.categories = "Pick at least one starting category.";
-    }
+    const e = validateOnboardingStep(current, form, subdomain, code, categoryPayload.length);
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -133,22 +551,9 @@ export function OnboardingPage() {
     setServerError(null);
     setLoading(true);
     try {
-      await api("/api/auth/sign-up/email", {
-        method: "POST",
-        body: JSON.stringify({ name: form.adminName.trim(), email: form.adminEmail.trim(), password: form.adminPassword }),
-      });
-      const res = await api<{ id: string; name: string; slug: string; code: string }>("/api/organizations", {
-        method: "POST",
-        body: JSON.stringify({
-          name: form.organizationName.trim(),
-          slug: subdomain,
-          code,
-          categories: categoryPayload,
-          ...(form.adminDepartment.trim() ? { department: form.adminDepartment.trim() } : {}),
-        }),
-      });
-      const me = await api<{ user: SessionUser }>("/api/me");
-      setUser(me.user);
+      const res = await createCampus({ form, subdomain, code, categories: categoryPayload });
+      const sessionUser = await api<{ user: SessionUser }>("/api/me");
+      setUser(sessionUser.user);
       setAuthChecked(true);
       setDone({ subdomain: res.slug, code: res.code, orgName: res.name });
     } catch (err) {
@@ -177,272 +582,56 @@ export function OnboardingPage() {
     }
   }
 
+  const stepNode = (
+    <SelectStep
+      step={step}
+      form={form}
+      subdomain={subdomain}
+      code={code}
+      errors={errors}
+      showPwd={showPwd}
+      selected={selected}
+      customs={customs}
+      customName={customName}
+      categoryPayload={categoryPayload}
+      onSet={set}
+      onSubdomainChange={(v) => { setSubdomainTouched(true); set("subdomain", v.toLowerCase().replace(/[^a-z0-9-]/g, "")); }}
+      onCodeChange={(v) => { setCodeTouched(true); set("code", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10)); }}
+      onTogglePreset={togglePreset}
+      onCustomNameChange={setCustomName}
+      onAddCustom={addCustom}
+      onRemoveCustom={(name) => setCustoms((prev) => prev.filter((n) => n !== name))}
+      onTogglePwd={() => setShowPwd((v) => !v)}
+    />
+  );
+
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      {}
-      <div className="relative flex flex-col justify-between overflow-hidden bg-[#2f2f30] px-6 py-8 text-[#fdfaf6] lg:w-[42%] lg:px-12 lg:py-14">
-        <div className="relative">
-          <div className="flex items-center gap-3">
-            <span className="mark block h-11 w-11" aria-hidden />
-            <div>
-              <p className="wordmark text-[20px] leading-tight text-[#fdfaf6]">mivacampus</p>
-              <p className="text-sm text-[#fdfaf6]/60">Campus onboarding</p>
-            </div>
-          </div>
-
-          <div className="mt-8 lg:mt-14">
-            <p className="tabular-nums text-xs font-bold text-[#ffb59e]">Step {Math.min(step, 4)} of 4</p>
-            <h1 className="mt-3 max-w-md text-[32px] font-semibold leading-[1.02] tracking-[-0.03em] text-[#fdfaf6]">
-              Set up your campus in a few minutes.
-            </h1>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-[#fdfaf6]/70">
-              Create your university's workspace, its first administrator account and the categories staff will report against. Then share your campus code with everyone.
-            </p>
-          </div>
-
-          <ol className="mt-8 grid gap-2 sm:grid-cols-2 lg:mt-12 lg:grid-cols-1 lg:gap-4">
-            {STEPS.map((label, i) => {
-              const n = i + 1;
-              const state = done || n < step ? "done" : n === step ? "current" : "upcoming";
-              return (
-                <li key={label} className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${state === "current" ? "border-[#ffb59e]/40 bg-[#ffb59e]/10" : "border-[#fdfaf6]/15 bg-[#fdfaf6]/5"}`}>
-                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${state === "done" ? "bg-[#c94a1c] text-[#fdfaf6]" : state === "current" ? "border border-[#ffb59e] text-[#ffb59e]" : "border border-[#fdfaf6]/30 text-[#fdfaf6]/60"}`}>
-                    {state === "done" ? <Check className="h-4 w-4" /> : n}
-                  </span>
-                  <span className={`text-sm ${state === "upcoming" ? "text-[#fdfaf6]/50" : "text-[#fdfaf6]"}`}>{label}</span>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-
-        <div className="relative mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[#fdfaf6]/65 lg:mt-10">
-          <span className="flex items-center gap-1.5"><ClipboardList className="h-4 w-4" /> Full audit trail</span>
-          <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> You're the first admin</span>
-          <span className="flex items-center gap-1.5"><BellRing className="h-4 w-4" /> Your campus, your data</span>
-        </div>
-      </div>
+      <BrandRail step={step} done={!!done} />
 
       <div className="flex flex-1 items-center justify-center bg-muted/40 px-4 py-10 sm:px-8">
         <div className="w-full max-w-lg">
-          {session === "loading" ? (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-12 ">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Checking your session…</p>
-            </div>
-          ) : session === "authed" && me ? (
-            <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-10">
-              <ShieldCheck className="mx-auto h-10 w-10 text-foreground" />
-              <h2 className="mt-4 text-xl font-semibold">You're already signed in</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Onboarding creates a brand-new campus. Sign in as <span className="font-medium text-foreground">{me.name}</span>, or sign out first if you're setting up a different campus.
-              </p>
-              <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
-                <Button onClick={() => navigate({ to: "/" })}>Open your dashboard <ArrowRight className="ml-2 h-4 w-4" /></Button>
-                <Button variant="outline" onClick={signOutAndReset}>Sign out & start fresh</Button>
-              </div>
-            </div>
-          ) : done ? (
-            <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
-              <CheckCircle2 className="h-12 w-12 text-foreground" />
-              <h2 className="mt-4 text-2xl font-semibold">{done.orgName} is live</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Your campus workspace is ready. Staff join with the campus code — they'll enter it when they create their accounts.
-              </p>
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
-                  <p className="text-xs font-semibold text-muted-foreground">Subdomain</p>
-                  <p className="mt-1 break-all text-lg font-bold tabular-nums">{done.subdomain}</p>
-                  <Button variant="outline" size="sm" className="mt-3 h-8 text-xs" onClick={() => copyDone(done.subdomain, "subdomain")}>
-                    {copied === "subdomain" ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy"}
-                  </Button>
-                </div>
-                <div className="rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
-                  <p className="text-xs font-semibold text-muted-foreground">Campus code</p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums tracking-[0.08em]">{done.code}</p>
-                  <Button variant="outline" size="sm" className="mt-3 h-8 text-xs" onClick={() => copyDone(done.code, "code")}>
-                    {copied === "code" ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy code"}
-                  </Button>
-                </div>
-              </div>
-              <p className="mt-3 text-center text-xs text-muted-foreground">Staff and student numbers start with the code — e.g. {done.code}/0001.</p>
-              <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> You're signed in as the first <span className="font-medium text-foreground">&nbsp;administrator</span>.</li>
-                <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> Staff who sign up with this code join your campus automatically.</li>
-                <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> You can create officer accounts and manage users from Manage Users. Categories live on the Categories page.</li>
-              </ul>
-              <Button className="mt-6 w-full" size="lg" onClick={() => navigate({ to: "/" })}>
-                Open your dashboard <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
-              {serverError && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertDescription>{serverError}</AlertDescription>
-                </Alert>
-              )}
-
-              {step === 1 && (
-                <div>
-                  <h2 className="text-xl font-semibold">Name your campus</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">This is the university or campus whose faults you'll be tracking.</p>
-                  <div className="mt-5 space-y-1.5">
-                    <Label htmlFor="ob-org">Campus or university name</Label>
-                    <Input id="ob-org" placeholder="e.g. Example University" value={form.organizationName} onChange={(e) => set("organizationName", e.target.value)} autoFocus />
-                    {errors.organizationName && <p className="text-xs text-destructive">{errors.organizationName}</p>}
-                  </div>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ob-subdomain">Subdomain</Label>
-                      <Input id="ob-subdomain" placeholder="e.g. example-university" value={subdomain} onChange={(e) => { setSubdomainTouched(true); set("subdomain", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); }} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" />
-                      {errors.subdomain && <p className="text-xs text-destructive">{errors.subdomain}</p>}
-                      <p className="text-[11px] text-muted-foreground">The campus address label.</p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ob-code">Campus code</Label>
-                      <Input id="ob-code" placeholder="e.g. EU" value={code} onChange={(e) => { setCodeTouched(true); set("code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10)); }} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={10} className="font-mono uppercase" />
-                      {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
-                      <p className="text-[11px] text-muted-foreground">Staff and student numbers start with the code — e.g. {code || "MOU"}/0001.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 2 && (
-                <div>
-                  <h2 className="text-xl font-semibold">Create the administrator account</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">This is you, the first admin for {form.organizationName.trim() || "your campus"}. You can add more admins later.</p>
-                  <div className="mt-5 space-y-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ob-name">Full name</Label>
-                      <Input id="ob-name" placeholder="e.g. Ada Obi" value={form.adminName} onChange={(e) => set("adminName", e.target.value)} autoFocus />
-                      {errors.adminName && <p className="text-xs text-destructive">{errors.adminName}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ob-email">Email address</Label>
-                      <Input id="ob-email" type="email" placeholder="you@university.edu" value={form.adminEmail} onChange={(e) => set("adminEmail", e.target.value)} autoComplete="email" />
-                      {errors.adminEmail && <p className="text-xs text-destructive">{errors.adminEmail}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ob-password">Password</Label>
-                      <div className="relative">
-                        <Input id="ob-password" type={showPwd ? "text" : "password"} placeholder="8+ characters, letters and numbers" value={form.adminPassword} onChange={(e) => set("adminPassword", e.target.value)} autoComplete="new-password" className="pr-10" />
-                        <button type="button" aria-label={showPwd ? "Hide password" : "Show password"} onClick={() => setShowPwd((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      {errors.adminPassword && <p className="text-xs text-destructive">{errors.adminPassword}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ob-dept">Department or unit <span className="text-muted-foreground">(optional)</span></Label>
-                      <Input id="ob-dept" placeholder="e.g. Facilities" value={form.adminDepartment} onChange={(e) => set("adminDepartment", e.target.value)} />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                <div>
-                  <h2 className="text-xl font-semibold">Pick your starting categories</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Staff and students pick one of these when reporting a fault. You can rename, reorder or add more later.</p>
-                  {errors.categories && <p className="mt-2 text-xs text-destructive">{errors.categories}</p>}
-                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {PRESETS.map((preset) => {
-                      const active = selected.includes(preset.name);
-                      const Icon = preset.icon;
-                      return (
-                        <button
-                          key={preset.name}
-                          type="button"
-                          onClick={() => togglePreset(preset.name)}
-                          aria-pressed={active}
-                          className={`flex items-start gap-2.5 rounded-md border p-3 text-left transition-colors ${active ? "border-[#ffb59e] bg-[#ffb59e]/10" : "hover:border-[#fdfaf6]/40"}`}
-                        >
-                          <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${active ? "text-[#e8602b]" : "text-muted-foreground"}`} />
-                          <span>
-                            <span className="block text-sm font-semibold leading-tight">{preset.name}</span>
-                            <span className="mt-1 line-clamp-2 block text-xs leading-snug text-muted-foreground">{preset.description}</span>
-                          </span>
-                          {active && <Check className="ml-auto h-4 w-4 shrink-0 text-[#c94a1c]" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {customs.length > 0 && (
-                    <ul className="mt-3 flex flex-wrap gap-2">
-                      {customs.map((name) => (
-                        <li key={name} className="flex items-center gap-1.5 rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium">
-                          {name}
-                          <button type="button" aria-label={`Remove ${name}`} onClick={() => setCustoms((prev) => prev.filter((n) => n !== name))} className="text-muted-foreground hover:text-foreground">
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="mt-3 flex gap-2">
-                    <Input placeholder="Add another category, e.g. Lift & Escalator" value={customName} onChange={(e) => setCustomName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustom())} className="h-10" />
-                    <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={addCustom} aria-label="Add category">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">{categoryPayload.length} selected</p>
-                </div>
-              )}
-
-              {step === 4 && (
-                <div>
-                  <h2 className="text-xl font-semibold">Review & create</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Everything lands together: one campus, one admin, your chosen categories.</p>
-                  <dl className="mt-5 divide-y divide-border rounded-2xl border border-border">
-                    <div className="flex items-start justify-between gap-4 p-4">
-                      <dt className="text-sm font-medium text-muted-foreground">Campus</dt>
-                      <dd className="text-right text-sm font-semibold">{form.organizationName.trim()}</dd>
-                    </div>
-                    <div className="flex items-start justify-between gap-4 p-4">
-                      <dt className="text-sm font-medium text-muted-foreground">Subdomain</dt>
-                      <dd className="text-right text-sm font-semibold tabular-nums">{subdomain}</dd>
-                    </div>
-                    <div className="flex items-start justify-between gap-4 p-4">
-                      <dt className="text-sm font-medium text-muted-foreground">Campus code</dt>
-                      <dd className="text-right text-sm font-semibold tabular-nums">{code}</dd>
-                    </div>
-                    <div className="flex items-start justify-between gap-4 p-4">
-                      <dt className="text-sm font-medium text-muted-foreground">Administrator</dt>
-                      <dd className="text-right text-sm font-semibold">{form.adminName.trim()}<br /><span className="text-xs font-normal text-muted-foreground">{form.adminEmail.trim()}</span></dd>
-                    </div>
-                    <div className="p-4">
-                      <dt className="text-sm font-medium text-muted-foreground">Starting categories ({categoryPayload.length})</dt>
-                      <dd className="mt-2 flex flex-wrap gap-1.5">
-                        {categoryPayload.map((c) => (
-                          <span key={c.name} className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">{c.name}</span>
-                        ))}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
-
-              <div className="mt-6 flex items-center justify-between gap-3">
-                {step > 1 ? (
-                  <Button variant="ghost" onClick={() => setStep((s) => Math.max(1, s - 1))} disabled={loading}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                  </Button>
-                ) : (
-                  <Button variant="ghost" onClick={() => navigate({ to: "/" })}><ArrowLeft className="mr-2 h-4 w-4" /> Home</Button>
-                )}
-                {step < 4 ? (
-                  <Button onClick={next}>Continue <ArrowRight className="ml-2 h-4 w-4" /></Button>
-                ) : (
-                  <Button onClick={create} disabled={loading}>
-                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating campus…</> : "Create campus"}
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
+          <SessionGate
+            session={session}
+            me={me}
+            done={done}
+            copied={copied}
+            onCopy={copyDone}
+            onAuthedContinue={() => navigate({ to: "/" })}
+            onDoneContinue={() => navigate({ to: "/" })}
+            onSignOut={signOutAndReset}
+          >
+            <FormCard
+              serverError={serverError}
+              step={step}
+              stepNode={stepNode}
+              loading={loading}
+              onContinue={next}
+              onBack={() => setStep((s) => Math.max(1, s - 1))}
+              onCreate={create}
+              onHome={() => navigate({ to: "/" })}
+            />
+          </SessionGate>
         </div>
       </div>
     </div>

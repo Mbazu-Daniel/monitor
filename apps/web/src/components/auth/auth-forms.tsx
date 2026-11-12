@@ -6,13 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Eye, EyeOff, Building2, Mail, Lock, ArrowRight } from "@/components/icons";
+import { Loader2, Building2, Mail, ArrowRight } from "@/components/icons";
+import { PasswordInput } from "@/components/auth/password-input";
 import { toast } from "sonner";
 import { api, ApiError } from "@/lib/client";
+import { passwordMeetsPolicy } from "@mivacampus/contracts";
 import type { SessionUser } from "@/types";
 
 function looksLikeEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function EmailInput({ id, value, onChange, autoFocus }: { id: string; value: string; onChange: (value: string) => void; autoFocus?: boolean }) {
+  return (
+    <div className="relative">
+      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" strokeWidth={2} />
+      <Input id={id} type="email" placeholder="you@university.edu" value={value} onChange={(e) => onChange(e.target.value)} autoComplete="email" autoFocus={autoFocus} className="h-11 rounded-md border-input bg-card pl-10 pr-10 transition-colors placeholder:text-muted-foreground focus-visible:ring-ring/50" />
+      {looksLikeEmail(value) && (
+        <span className="pointer-events-none absolute right-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-night">
+          <svg viewBox="0 0 24 24" className="h-3 w-3 text-night-foreground" fill="none" stroke="currentColor" strokeWidth={3.5}><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function LoginForm({ onAuthed }: { onAuthed: (user: SessionUser) => void }) {
@@ -20,7 +36,6 @@ export function LoginForm({ onAuthed }: { onAuthed: (user: SessionUser) => void 
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -98,25 +113,11 @@ export function LoginForm({ onAuthed }: { onAuthed: (user: SessionUser) => void 
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <div className="space-y-1.5">
         <Label htmlFor="login-email" className="text-[13px] font-medium text-muted-foreground">Email</Label>
-        <div className="relative">
-          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" strokeWidth={2} />
-          <Input id="login-email" type="email" placeholder="you@university.edu" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className="h-11 rounded-md border-input bg-card pl-10 pr-10 transition-colors placeholder:text-muted-foreground focus-visible:ring-ring/50" />
-          {looksLikeEmail(email) && (
-            <span className="pointer-events-none absolute right-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-night">
-              <svg viewBox="0 0 24 24" className="h-3 w-3 text-night-foreground" fill="none" stroke="currentColor" strokeWidth={3.5}><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </span>
-          )}
-        </div>
+        <EmailInput id="login-email" value={email} onChange={setEmail} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="login-password" className="text-[13px] font-medium text-muted-foreground">Password</Label>
-        <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" strokeWidth={2} />
-          <Input id="login-password" type={showPwd ? "text" : "password"} placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className="h-11 rounded-md border-input bg-card pl-10 pr-10 transition-colors placeholder:text-muted-foreground focus-visible:ring-ring/50" />
-          <button type="button" aria-label={showPwd ? "Hide password" : "Show password"} onClick={() => setShowPwd((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground">
-            {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
+        <PasswordInput id="login-password" value={password} onChange={setPassword} placeholder="Your password" autoComplete="current-password" />
       </div>
       <Button type="submit" className="h-12 w-full text-[16px]" disabled={loading}>
         {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in…</> : "Sign in"}
@@ -129,7 +130,6 @@ export function LoginForm({ onAuthed }: { onAuthed: (user: SessionUser) => void 
 export function CreateAccountForm({ onCreated }: { onCreated: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -137,7 +137,7 @@ export function CreateAccountForm({ onCreated }: { onCreated: () => void }) {
     e.preventDefault();
     setError(null);
     if (!looksLikeEmail(email)) return setError("Enter a valid email.");
-    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+    if (!passwordMeetsPolicy(password)) {
       return setError("Password must be at least 8 characters with letters and numbers.");
     }
     setLoading(true);
@@ -170,25 +170,11 @@ export function CreateAccountForm({ onCreated }: { onCreated: () => void }) {
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       <div className="space-y-1.5">
         <Label htmlFor="reg-email" className="text-[13px] font-medium text-muted-foreground">Email</Label>
-        <div className="relative">
-          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" strokeWidth={2} />
-          <Input id="reg-email" type="email" placeholder="you@university.edu" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className="h-11 rounded-md border-input bg-card pl-10 pr-10 transition-colors placeholder:text-muted-foreground focus-visible:ring-ring/50" autoFocus />
-          {looksLikeEmail(email) && (
-            <span className="pointer-events-none absolute right-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-night">
-              <svg viewBox="0 0 24 24" className="h-3 w-3 text-night-foreground" fill="none" stroke="currentColor" strokeWidth={3.5}><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </span>
-          )}
-        </div>
+        <EmailInput id="reg-email" value={email} onChange={setEmail} autoFocus />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="reg-password" className="text-[13px] font-medium text-muted-foreground">Password</Label>
-        <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" strokeWidth={2} />
-          <Input id="reg-password" type={showPwd ? "text" : "password"} placeholder="8+ characters, letters and numbers" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" className="h-11 rounded-md border-input bg-card pl-10 pr-10 transition-colors placeholder:text-muted-foreground focus-visible:ring-ring/50" />
-          <button type="button" aria-label={showPwd ? "Hide password" : "Show password"} onClick={() => setShowPwd((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground">
-            {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
+        <PasswordInput id="reg-password" value={password} onChange={setPassword} placeholder="8+ characters, letters and numbers" autoComplete="new-password" autoFocus />
       </div>
       <Button type="submit" className="h-12 w-full text-[16px]" disabled={loading}>
         {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account…</> : <>Create account <ArrowRight className="ml-2 h-4 w-4" /></>}

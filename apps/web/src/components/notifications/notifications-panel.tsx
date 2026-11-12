@@ -28,8 +28,99 @@ const TYPE_STYLES: Record<string, string> = {
   COMMENT: "bg-blue-soft text-blue-deep",
 };
 
+function NotificationItem({ n, onOpen }: { n: NotificationRow; onOpen: (n: NotificationRow) => void }) {
+  return (
+    <li>
+      <button
+        onClick={() => onOpen(n)}
+        className={cn(
+          "flex w-full items-start gap-3 px-5 py-3.5 text-left transition-colors hover:bg-secondary/70",
+          !n.isRead && "bg-[color-mix(in_srgb,var(--accent-soft)_40%,transparent)]"
+        )}
+      >
+        <span className={cn("mt-0.5 h-2 w-2 shrink-0 rounded-full", n.isRead ? "bg-transparent" : "bg-[var(--accent)]")} aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]", TYPE_STYLES[n.type] ?? TYPE_STYLES.INFO)}>
+              {n.type}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{timeAgo(n.createdAt)}</span>
+          </span>
+          <span className="mt-1.5 block text-[13px] font-semibold leading-snug">{n.title}</span>
+          <span className="mt-0.5 line-clamp-2 block text-[12px] leading-snug text-muted-foreground">{n.message}</span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function NotificationList({ isLoading, items, onOpen }: { isLoading: boolean; items: NotificationRow[]; onOpen: (n: NotificationRow) => void }) {
+  if (isLoading) {
+    return <div className="space-y-2 p-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>;
+  }
+  if (items.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+        <Inbox className="h-8 w-8 text-muted-foreground/60" />
+        <div>
+          <p className="text-[15px] font-semibold">Nothing yet</p>
+          <p className="mt-1 max-w-[28ch] text-[13px] text-muted-foreground">Updates on your requests will land here.</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <ul className="divide-y divide-border/60">
+      {items.map((n) => (
+        <NotificationItem key={n.id} n={n} onOpen={onOpen} />
+      ))}
+    </ul>
+  );
+}
+
 function refreshBadge() {
   window.dispatchEvent(new Event(NOTIFICATIONS_REFRESH));
+}
+
+function PanelHeader({ unread, onMarkAllRead, onClose }: { unread: number; onMarkAllRead: () => void; onClose: () => void }) {
+  return (
+    <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border/70 px-5">
+      <div className="flex items-center gap-2.5">
+        <Bell className="h-5 w-5 text-muted-foreground" />
+        <h2 className="text-[15px] font-semibold">Notifications</h2>
+        {unread > 0 && (
+          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--accent-deep)]">{unread} new</span>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
+        {unread > 0 && (
+          <button
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12px] font-medium text-[var(--cta)] transition-colors hover:bg-secondary"
+            onClick={onMarkAllRead}
+          >
+            <CheckCheck className="h-3.5 w-3.5" /> Mark all read
+          </button>
+        )}
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label="Close notifications">
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function LoadMoreFooter({ hasNextPage, isFetching, itemCount, onLoadMore }: { hasNextPage: boolean; isFetching: boolean; itemCount: number; onLoadMore: () => void }) {
+  if (hasNextPage) {
+    return (
+      <Button variant="outline" className="w-full" onClick={onLoadMore} disabled={isFetching}>
+        {isFetching ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…</> : <>Load older <ChevronDownIcon className="ml-2 h-4 w-4" /></>}
+      </Button>
+    );
+  }
+  if (itemCount > 0) {
+    return <p className="py-1 text-center text-[11.5px] text-muted-foreground">You&apos;re all caught up.</p>;
+  }
+  return null;
 }
 
 export function NotificationsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -81,78 +172,15 @@ export function NotificationsPanel({ open, onOpenChange }: { open: boolean; onOp
           <DetailView notification={selected} onBack={() => setSelected(null)} onOpenChange={onOpenChange} />
         ) : (
           <>
-            <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border/70 px-5">
-              <div className="flex items-center gap-2.5">
-                <Bell className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-[15px] font-semibold">Notifications</h2>
-                {unread > 0 && (
-                  <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--accent-deep)]">{unread} new</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                {unread > 0 && (
-                  <button
-                    className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12px] font-medium text-[var(--cta)] transition-colors hover:bg-secondary"
-                    onClick={markAllRead}
-                  >
-                    <CheckCheck className="h-3.5 w-3.5" /> Mark all read
-                  </button>
-                )}
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)} aria-label="Close notifications">
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            <PanelHeader unread={unread} onMarkAllRead={() => void markAllRead()} onClose={() => onOpenChange(false)} />
 
             <div className="flex h-[calc(100%-4rem)] flex-col">
               <div className="flex-1 overflow-y-auto">
-                {isLoading ? (
-                  <div className="space-y-2 p-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
-                ) : items.length === 0 ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-                    <Inbox className="h-8 w-8 text-muted-foreground/60" />
-                    <div>
-                      <p className="text-[15px] font-semibold">Nothing yet</p>
-                      <p className="mt-1 max-w-[28ch] text-[13px] text-muted-foreground">Updates on your requests will land here.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <ul className="divide-y divide-border/60">
-                    {items.map((n) => (
-                      <li key={n.id}>
-                        <button
-                          onClick={() => void openNotification(n)}
-                          className={cn(
-                            "flex w-full items-start gap-3 px-5 py-3.5 text-left transition-colors hover:bg-secondary/70",
-                            !n.isRead && "bg-[color-mix(in_srgb,var(--accent-soft)_40%,transparent)]"
-                          )}
-                        >
-                          <span className={cn("mt-0.5 h-2 w-2 shrink-0 rounded-full", n.isRead ? "bg-transparent" : "bg-[var(--accent)]")} aria-hidden />
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-2">
-                              <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]", TYPE_STYLES[n.type] ?? TYPE_STYLES.INFO)}>
-                                {n.type}
-                              </span>
-                              <span className="text-[11px] text-muted-foreground">{timeAgo(n.createdAt)}</span>
-                            </span>
-                            <span className="mt-1.5 block text-[13px] font-semibold leading-snug">{n.title}</span>
-                            <span className="mt-0.5 line-clamp-2 block text-[12px] leading-snug text-muted-foreground">{n.message}</span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <NotificationList isLoading={isLoading} items={items} onOpen={(n) => void openNotification(n)} />
               </div>
 
               <div className="shrink-0 border-t border-border/70 px-5 py-3">
-                {hasNextPage ? (
-                  <Button variant="outline" className="w-full" onClick={() => void fetchNextPage()} disabled={isFetchingNextPage}>
-                    {isFetchingNextPage ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…</> : <>Load older <ChevronDownIcon className="ml-2 h-4 w-4" /></>}
-                  </Button>
-                ) : items.length > 0 ? (
-                  <p className="py-1 text-center text-[11.5px] text-muted-foreground">You&apos;re all caught up.</p>
-                ) : null}
+                <LoadMoreFooter hasNextPage={hasNextPage ?? false} isFetching={isFetchingNextPage} itemCount={items.length} onLoadMore={() => void fetchNextPage()} />
               </div>
             </div>
           </>

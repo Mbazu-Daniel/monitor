@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { api, ApiError } from "@/lib/client";
 import { toast } from "sonner";
@@ -96,24 +96,56 @@ export function CategoriesView() {
   );
 }
 
+async function persistCategory(category: Category | null, payload: { name: string; description: string; icon: string }) {
+  if (category) {
+    await api(`/api/categories/${category.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+    toast.success("Category updated.");
+  } else {
+    await api("/api/categories", { method: "POST", body: JSON.stringify(payload) });
+    toast.success("Category created.");
+  }
+}
+
+function IconPicker({ value, onChange }: { value: string; onChange: (key: string) => void }) {
+  return (
+    <div className="grid grid-cols-6 gap-1.5">
+      {CATEGORY_ICON_KEYS.map((key) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(key)}
+          className={cn(
+            "flex h-10 items-center justify-center rounded-full border transition-colors",
+            value === key ? "border-[var(--cta)] bg-[var(--accent-soft)] text-[var(--cta)]" : "border-border text-muted-foreground hover:bg-secondary"
+          )}
+          aria-label={`Icon ${key}`}
+        >
+          <CategoryIcon icon={key} className="h-4 w-4" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function CategoryDialog({ open, category, onClose, onSaved }: { open: boolean; category: Category | null; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(category?.name || "");
-  const [description, setDescription] = useState(category?.description || "");
-  const [icon, setIcon] = useState(category?.icon || "Wrench");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [icon, setIcon] = useState("Wrench");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setName(category?.name || "");
+    setDescription(category?.description || "");
+    setIcon(category?.icon || "Wrench");
+  }, [open, category]);
 
   async function save() {
     if (name.trim().length < 2) return toast.error("Category name is required.");
     setBusy(true);
     try {
       const payload = { name: name.trim(), description: description.trim(), icon };
-      if (category) {
-        await api(`/api/categories/${category.id}`, { method: "PATCH", body: JSON.stringify(payload) });
-        toast.success("Category updated.");
-      } else {
-        await api("/api/categories", { method: "POST", body: JSON.stringify(payload) });
-        toast.success("Category created.");
-      }
+      await persistCategory(category, payload);
       onSaved();
       onClose();
     } catch (e) {
@@ -141,22 +173,7 @@ function CategoryDialog({ open, category, onClose, onSaved }: { open: boolean; c
           </div>
           <div className="space-y-1.5">
             <Label>Icon</Label>
-            <div className="grid grid-cols-6 gap-1.5">
-              {CATEGORY_ICON_KEYS.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setIcon(key)}
-                  className={cn(
-                    "flex h-10 items-center justify-center rounded-full border transition-colors",
-                    icon === key ? "border-[var(--cta)] bg-[var(--accent-soft)] text-[var(--cta)]" : "border-border text-muted-foreground hover:bg-secondary"
-                  )}
-                  aria-label={`Icon ${key}`}
-                >
-                  <CategoryIcon icon={key} className="h-4 w-4" />
-                </button>
-              ))}
-            </div>
+            <IconPicker value={icon} onChange={setIcon} />
           </div>
         </div>
         <DialogFooter>

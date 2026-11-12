@@ -257,17 +257,33 @@ function ProfilePanel() {
   );
 }
 
-function OrganizationPanel() {
-  const { user } = useAppStore();
+function CopyField({ label, value, kind, copied, onCopy, large, buttonLabel }: {
+  label: string;
+  value: string | null;
+  kind: "subdomain" | "code";
+  copied: "subdomain" | "code" | null;
+  onCopy: (value: string, kind: "subdomain" | "code") => void;
+  large?: boolean;
+  buttonLabel: string;
+}) {
+  return (
+    <div className="flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed border-border bg-secondary/40 px-4 py-2.5">
+      <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
+      <span className={`font-mono font-semibold tracking-wide ${large ? "text-lg" : "text-base"}`}>{value ?? "…"}</span>
+      {value && (
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onCopy(value, kind)} aria-label={`Copy ${label.toLowerCase()}`}>
+          {copied === kind ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+          {copied === kind ? "Copied" : buttonLabel}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function useCopied() {
   const [copied, setCopied] = useState<"subdomain" | "code" | null>(null);
 
-  if (!user) return null;
-
-  const code = user.organizationCode ?? null;
-  const subdomain = user.organizationSlug ?? null;
-  const isAdmin = user.role === "ADMIN";
-
-  async function copyValue(value: string | null, kind: "subdomain" | "code") {
+  async function copy(value: string | null, kind: "subdomain" | "code") {
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
@@ -279,6 +295,61 @@ function OrganizationPanel() {
     }
   }
 
+  return { copied, copy };
+}
+
+function roleLabel(role?: string | null): string | undefined {
+  if (!role) return undefined;
+  return ROLE_LABELS[role] ?? role;
+}
+
+function MembershipCard({ code, isAdmin, copied, onCopy }: { code: string | null; isAdmin: boolean; copied: "subdomain" | "code" | null; onCopy: (value: string, kind: "subdomain" | "code") => void }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          {isAdmin ? <ShieldCheck className="h-4 w-4 text-[var(--accent-deep)]" /> : <Building2 className="h-4 w-4 text-muted-foreground" />}
+          {isAdmin ? "Bringing staff into this campus" : "Your membership"}
+        </CardTitle>
+        <CardDescription>
+          {isAdmin
+            ? "The campus code is the only thing anyone needs to join as staff. Share it deliberately. Anyone holding it becomes a member."
+            : "Membership is tied to this campus. If you need to move campuses, your campus administrator has to move you."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Campus code</p>
+            <p className="mt-0.5 truncate font-mono text-base font-semibold">{code ?? "…"}</p>
+          </div>
+          {code && (
+            <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs" onClick={() => onCopy(code, "code")} aria-label="Copy campus code">
+              {copied === "code" ? <Check className="mr-1.5 h-4 w-4" /> : <Copy className="mr-1.5 h-4 w-4" />}
+              {copied === "code" ? "Copied" : "Copy code"}
+            </Button>
+          )}
+        </div>
+        {isAdmin && (
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Staff who already have an account join with this code. They choose their own password. Officer and admin accounts are created from Manage Users.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function OrganizationPanel() {
+  const { user } = useAppStore();
+  const { copied, copy } = useCopied();
+
+  if (!user) return null;
+
+  const code = user.organizationCode ?? null;
+  const subdomain = user.organizationSlug ?? null;
+  const isAdmin = user.role === "ADMIN";
+
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_1fr]">
       <Card className="h-fit">
@@ -289,26 +360,8 @@ function OrganizationPanel() {
           <p className="mt-4 max-w-full truncate text-lg font-semibold leading-tight">{user.organizationName ?? "Your campus"}</p>
           <p className="mt-0.5 text-xs uppercase tracking-[0.12em] text-muted-foreground">Campus</p>
           <div className="mt-4 flex w-full flex-col gap-2">
-            <div className="flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed border-border bg-secondary/40 px-4 py-2.5">
-              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Subdomain</span>
-              <span className="font-mono text-base font-semibold tracking-wide">{subdomain ?? "…"}</span>
-              {subdomain && (
-                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyValue(subdomain, "subdomain")} aria-label="Copy subdomain">
-                  {copied === "subdomain" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
-                  {copied === "subdomain" ? "Copied" : "Copy"}
-                </Button>
-              )}
-            </div>
-            <div className="flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed border-border bg-secondary/40 px-4 py-2.5">
-              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Campus code</span>
-              <span className="font-mono text-lg font-semibold tracking-wide">{code ?? "…"}</span>
-              {code && (
-                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyValue(code, "code")} aria-label="Copy campus code">
-                  {copied === "code" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
-                  {copied === "code" ? "Copied" : "Copy code"}
-                </Button>
-              )}
-            </div>
+            <CopyField label="Subdomain" value={subdomain} kind="subdomain" copied={copied} onCopy={copy} buttonLabel="Copy" />
+            <CopyField label="Campus code" value={code} kind="code" copied={copied} onCopy={copy} large buttonLabel="Copy code" />
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <RoleBadge role={user.role} />
@@ -333,44 +386,13 @@ function OrganizationPanel() {
               <DetailRow icon={Building} label="Campus" value={user.organizationName} />
               <DetailRow icon={DoorOpen} label="Subdomain" value={subdomain} placeholder="…" />
               <DetailRow icon={Hash} label="Campus code" value={code} placeholder="…" />
-              <DetailRow icon={KeyRound} label="Your role" value={user.role ? ROLE_LABELS[user.role] ?? user.role : undefined} />
+              <DetailRow icon={KeyRound} label="Your role" value={roleLabel(user.role)} />
               <DetailRow icon={Mail} label="Sign-in email" value={user.email} />
             </ul>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              {isAdmin ? <ShieldCheck className="h-4 w-4 text-[var(--accent-deep)]" /> : <Building2 className="h-4 w-4 text-muted-foreground" />}
-              {isAdmin ? "Bringing staff into this campus" : "Your membership"}
-            </CardTitle>
-            <CardDescription>
-              {isAdmin
-                ? "The campus code is the only thing anyone needs to join as staff. Share it deliberately. Anyone holding it becomes a member."
-                : "Membership is tied to this campus. If you need to move campuses, your campus administrator has to move you."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Campus code</p>
-                <p className="mt-0.5 truncate font-mono text-base font-semibold">{code ?? "…"}</p>
-              </div>
-              {code && (
-                <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs" onClick={() => copyValue(code, "code")} aria-label="Copy campus code">
-                  {copied === "code" ? <Check className="mr-1.5 h-4 w-4" /> : <Copy className="mr-1.5 h-4 w-4" />}
-                  {copied === "code" ? "Copied" : "Copy code"}
-                </Button>
-              )}
-            </div>
-            {isAdmin && (
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                Staff who already have an account join with this code. They choose their own password. Officer and admin accounts are created from Manage Users.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <MembershipCard code={code} isAdmin={isAdmin} copied={copied} onCopy={copy} />
       </div>
     </div>
   );

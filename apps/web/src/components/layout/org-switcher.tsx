@@ -19,6 +19,24 @@ import type { SessionUser } from "@/types";
 
 type OrgSummary = { id: string; name: string; slug: string; role: string };
 
+function OrgAvatar({ name }: { name?: string }) {
+  return (
+    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-night text-[11px] font-bold text-night-foreground">
+      {(name ?? "?").charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+function OrgItem({ org, checked, onSwitch }: { org: OrgSummary; checked: boolean; onSwitch: (org: OrgSummary) => void }) {
+  return (
+    <DropdownMenuItem onClick={() => onSwitch(org)} className="gap-2">
+      <OrgAvatar name={org.name} />
+      <span className="min-w-0 flex-1 truncate">{org.name}</span>
+      {checked && <Check className="h-4 w-4 text-foreground" />}
+    </DropdownMenuItem>
+  );
+}
+
 export function OrgSwitcher() {
   const { user, setUser } = useAppStore();
   const tNavigate = useNavigate();
@@ -53,9 +71,7 @@ export function OrgSwitcher() {
           aria-label="Switch campus"
           className="flex h-11 w-full items-center gap-2 rounded-full border border-border bg-secondary px-2.5 transition-colors hover:bg-sand-deep"
         >
-          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-night text-[11px] font-bold text-night-foreground">
-            {(current?.name ?? user?.organizationName ?? "?").charAt(0).toUpperCase()}
-          </span>
+          <OrgAvatar name={current?.name ?? user?.organizationName} />
           <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">
             {current?.name ?? user?.organizationName ?? "Select campus"}
           </span>
@@ -65,13 +81,7 @@ export function OrgSwitcher() {
       <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuLabel>Your campuses</DropdownMenuLabel>
         {organizations.map((org) => (
-          <DropdownMenuItem key={org.id} onClick={() => switchOrg(org)} className="gap-2">
-            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-night text-[11px] font-bold text-night-foreground">
-              {org.name.charAt(0).toUpperCase()}
-            </span>
-            <span className="min-w-0 flex-1 truncate">{org.name}</span>
-            {org.id === current?.id && <Check className="h-4 w-4 text-foreground" />}
-          </DropdownMenuItem>
+          <OrgItem key={org.id} org={org} checked={org.id === current?.id} onSwitch={switchOrg} />
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => tNavigate({ to: "/onboarding" })} className="gap-2 text-muted-foreground">

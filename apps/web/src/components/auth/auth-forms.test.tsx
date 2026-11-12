@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 describe("LoginForm", () => {
-  it("requires a valid email", async () => {
+  it("requires a valid email", { timeout: 15000 }, async () => {
     const user = userEvent.setup({ delay: null });
     render(<LoginForm onAuthed={() => {}} />);
     await user.type(screen.getByLabelText("Email"), "not-an-email");

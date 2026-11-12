@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { Eye, EyeOff, Lock, Loader2, CheckCircle2 } from "@/components/icons";
+import { Loader2, CheckCircle2 } from "@/components/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/auth/password-input";
 import { AuthFrame } from "@/components/layout/auth-frame";
 import { api, ApiError } from "@/lib/client";
+import { passwordMeetsPolicy } from "@mivacampus/contracts";
 
 
 export function ResetPasswordPage() {
@@ -16,7 +17,6 @@ export function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -46,7 +46,7 @@ export function ResetPasswordPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+    if (!passwordMeetsPolicy(password)) {
       setError("Password must be at least 8 characters with letters and numbers.");
       return;
     }
@@ -72,20 +72,11 @@ export function ResetPasswordPage() {
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         <div className="space-y-1.5">
           <Label htmlFor="reset-password" className="text-[13px] font-medium text-muted-foreground">New password</Label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" strokeWidth={2} />
-            <Input id="reset-password" type={showPwd ? "text" : "password"} placeholder="8+ characters, letters and numbers" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" autoFocus className="h-11 rounded-md border-input bg-card pl-10 pr-10 transition-colors placeholder:text-muted-foreground focus-visible:ring-ring/50" />
-            <button type="button" aria-label={showPwd ? "Hide password" : "Show password"} onClick={() => setShowPwd((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground">
-              {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
+          <PasswordInput id="reset-password" value={password} onChange={setPassword} placeholder="8+ characters, letters and numbers" autoComplete="new-password" autoFocus />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="reset-confirm" className="text-[13px] font-medium text-muted-foreground">Confirm new password</Label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" strokeWidth={2} />
-            <Input id="reset-confirm" type={showPwd ? "text" : "password"} placeholder="Repeat it once more" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" className="h-11 rounded-md border-input bg-card pl-10 transition-colors placeholder:text-muted-foreground focus-visible:ring-ring/50" />
-          </div>
+          <PasswordInput id="reset-confirm" value={confirm} onChange={setConfirm} placeholder="Repeat it once more" autoComplete="new-password" />
         </div>
         <Button type="submit" className="h-12 w-full text-[16px]" disabled={loading}>
           {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating…</> : "Update password"}
