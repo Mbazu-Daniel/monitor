@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useFetch } from "@/hooks/use-fetch";
+import { apiUrl } from "@/lib/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -59,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const refresh = () => setBadgeTick((t) => t + 1);
     window.addEventListener(NOTIFICATIONS_REFRESH, refresh);
-    const source = new EventSource("/api/realtime/stream");
+    const source = new EventSource(apiUrl("/api/realtime/stream"));
     source.onmessage = () => { window.dispatchEvent(new Event(NOTIFICATIONS_REFRESH)); };
     return () => {
       window.removeEventListener(NOTIFICATIONS_REFRESH, refresh);

@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [tsconfigPaths(), tanstackStart(), tailwindcss(), react()],
+    plugins: [tsconfigPaths(), tanstackStart({ spa: { enabled: true, prerender: { outputPath: "/index" } } }), tailwindcss(), react()],
     server: {
       proxy: {
 

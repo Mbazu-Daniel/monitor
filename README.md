@@ -43,6 +43,12 @@ Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` (and `BET
 | Staff | `staff@university.edu` | `Staff@123` |
 | Officer | `officer1@university.edu` | `Officer@123` |
 
+## Deploy
+
+Web — Cloudflare Pages, on push to `main` via `.github/workflows/web-deploy.yml`. Builds the static SPA from `apps/web/.output/client`; deep links fall back to `index.html` (`apps/web/public/_redirects`). Set `VITE_API_URL` (repo variable `vars.VITE_API_URL`) to the absolute API URL, and the `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` secrets for `wrangler pages deploy`.
+
+API — container from `apps/api/Dockerfile` (`docker build -f apps/api/Dockerfile .`). Runs `prisma db push` on boot then `node dist/main.js` on :8089.
+
 ## Checks
 
 ```bash

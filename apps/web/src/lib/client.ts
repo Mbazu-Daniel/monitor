@@ -1,5 +1,14 @@
 import axios from "axios";
 
+const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
+const apiBase = (env.VITE_API_URL ?? "").replace(/\/+$/, "");
+
+// Absolute API origin when VITE_API_URL is set at build time; otherwise the
+// relative path through the local proxy (vite dev / vite preview)
+export function apiUrl(path: string): string {
+  return apiBase ? `${apiBase}${path}` : path;
+}
+
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -10,7 +19,7 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   try {
     const response = await axios.request<T>({
-      url: path,
+      url: apiUrl(path),
       method: options.method ?? "GET",
       data: options.body,
       withCredentials: true,

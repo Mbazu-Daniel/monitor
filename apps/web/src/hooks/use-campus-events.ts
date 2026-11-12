@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { apiUrl } from "@/lib/client";
 
 export type CampusEvent = {
   type: "REQUEST_CREATED" | "REQUEST_STATUS_CHANGED" | "REQUEST_ASSIGNED" | "REQUEST_UNASSIGNED" | "REQUEST_COMMENT";
@@ -19,7 +20,7 @@ export function useCampusEvents(onEvent: (event: CampusEvent) => void, requestId
   handlerRef.current = onEvent;
 
   useEffect(() => {
-    const source = new EventSource("/api/realtime/stream");
+    const source = new EventSource(apiUrl("/api/realtime/stream"));
     source.onmessage = (message) => {
       try {
         const event = JSON.parse(message.data) as CampusEvent;
