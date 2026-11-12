@@ -4,7 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useAppStore } from "@/stores/app-store";
 import type { ViewKey } from "@/stores/app-store";
 
-function viewPath(slug: string, view: ViewKey, reference?: string) {
+export function viewPath(slug: string, view: ViewKey, reference?: string) {
   const params = { orgSlug: slug };
   switch (view) {
     case "dashboard":

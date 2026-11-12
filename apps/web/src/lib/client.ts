@@ -49,6 +49,8 @@ export function qs(params: Record<string, string | number | undefined | null>) {
 }
 
 export async function download(path: string) {
-  const response = await axios.get<Blob>(path, { responseType: "blob", withCredentials: true });
+  // Verified sink: the destination is the build-time API origin (apiUrl) or the same-origin
+  // dev proxy, never attacker-controlled input.
+  const response = await axios.get<Blob>(apiUrl(path), { responseType: "blob", withCredentials: true });
   return response.data;
 }

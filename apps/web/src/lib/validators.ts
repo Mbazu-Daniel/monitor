@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { startingCategoriesSchema } from "@mivacampus/contracts";
 
 export {
   passwordSchema,
@@ -16,16 +17,7 @@ export const onboardingSchema = z.object({
   adminEmail: z.string().trim().toLowerCase().email("A valid email is required"),
   adminPassword: z.string().min(8, "Password must be at least 8 characters").max(72).regex(/[A-Za-z]/, "Password must contain at least one letter").regex(/[0-9]/, "Password must contain at least one number"),
   adminDepartment: z.string().trim().max(120).optional().or(z.literal("")),
-  categories: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(80),
-        description: z.string().trim().max(300).optional().or(z.literal("")),
-        icon: z.string().trim().max(50).default("Wrench"),
-      })
-    )
-    .min(1, "Pick at least one starting category")
-    .max(24),
+  categories: startingCategoriesSchema,
 });
 
 export const changePasswordSchema = z.object({

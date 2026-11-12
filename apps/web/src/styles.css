@@ -82,28 +82,30 @@
   --shadow: 0 1px 3px color-mix(in srgb, var(--fg) 10%, transparent), 0 6px 18px color-mix(in srgb, var(--fg) 7%, transparent);
   --scribble: color-mix(in srgb, var(--bg-2) 70%, var(--border));
   --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .4 0 0 0 0 .25 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 
+:root,
+.dark {
   --background: var(--bg);
   --foreground: var(--fg);
-  --card: #ffffff;
-  --card-foreground: var(--fg);
-  --popover: #ffffff;
   --popover-foreground: var(--fg);
-
   --primary: var(--accent);
   --primary-foreground: var(--accent-fg);
-
   --secondary: var(--bg-2);
   --secondary-foreground: var(--fg);
   --muted: var(--bg-2);
   --muted-foreground: var(--fg-muted);
-
   --accent-foreground: var(--fg);
-
   --destructive: var(--red);
+  --ring: var(--accent);
+}
+
+:root {
+  --card: #ffffff;
+  --card-foreground: var(--fg);
+  --popover: #ffffff;
   --destructive-foreground: #ffffff;
   --input: color-mix(in srgb, var(--fg) 18%, var(--border));
-  --ring: var(--accent);
 }
 
 .dark {
@@ -133,27 +135,11 @@
   --sand: var(--bg-2);
   --sand-deep: color-mix(in srgb, var(--bg-2) 60%, var(--border));
 
-  --background: var(--bg);
-  --foreground: var(--fg);
   --card: #1e1f25;
   --card-foreground: var(--fg);
   --popover: #1e1f25;
-  --popover-foreground: var(--fg);
-
-  --primary: var(--accent);
-  --primary-foreground: var(--accent-fg);
-
-  --secondary: var(--bg-2);
-  --secondary-foreground: var(--fg);
-  --muted: var(--bg-2);
-  --muted-foreground: var(--fg-muted);
-
-  --accent-foreground: var(--fg);
-
-  --destructive: var(--red);
   --destructive-foreground: #1a1410;
   --input: color-mix(in srgb, var(--fg) 22%, var(--border));
-  --ring: var(--accent);
   --scribble: color-mix(in srgb, var(--bg-2) 70%, var(--border));
 }
 
