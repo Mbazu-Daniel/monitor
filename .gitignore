@@ -55,3 +55,8 @@ dist/
 # generated code
 apps/api/src/generated
 apps/web/.tanstack
+
+# docs (not committed)
+docs/
+*.md
+!README.md
