@@ -41,7 +41,7 @@ local-*
 *.log
 dev.log
 dev.out.log
-test
+/test
 prompt
 
 server.log
@@ -55,3 +55,8 @@ dist/
 # generated code
 apps/api/src/generated
 apps/web/.tanstack
+
+# docs (not committed)
+docs/
+*.md
+!README.md

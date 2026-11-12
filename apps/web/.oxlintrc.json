@@ -1,0 +1,10 @@
+{
+  "ignorePatterns": [
+    "dist/**",
+    ".output/**",
+    ".tanstack/**",
+    "public/**",
+    "src/routeTree.gen.ts",
+    "tailwind.config.ts"
+  ]
+}
