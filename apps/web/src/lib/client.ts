@@ -1,0 +1,45 @@
+import axios from "axios";
+
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  try {
+    const response = await axios.request<T>({
+      url: path,
+      method: options.method ?? "GET",
+      data: options.body,
+      withCredentials: true,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers as Record<string, string> | undefined),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const body = error.response?.data as { message?: string | string[]; error?: string } | undefined;
+      const message = Array.isArray(body?.message) ? body.message.join(", ") : (body?.message ?? body?.error ?? error.message);
+      throw new ApiError(message, error.response?.status ?? 500);
+    }
+    throw error;
+  }
+}
+
+export function qs(params: Record<string, string | number | undefined | null>) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") search.set(key, String(value));
+  }
+  const result = search.toString();
+  return result ? `?${result}` : "";
+}
+
+export async function download(path: string) {
+  const response = await axios.get<Blob>(path, { responseType: "blob", withCredentials: true });
+  return response.data;
+}
