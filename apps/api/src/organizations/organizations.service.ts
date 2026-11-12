@@ -5,6 +5,7 @@ import type { PrismaClient } from "../generated/prisma/client.ts";
 import { AuditSink } from "../common/utils/audit.ts";
 import { nextStaffNo } from "../common/utils/staff-no.ts";
 import { slugify, uniqueSlug } from "../common/utils/slug.ts";
+import { uniqueCampusCode } from "../common/utils/campus-code.ts";
 import type { CreateOrganizationDto, JoinOrganizationDto } from "./organizations.dto.ts";
 
 @Injectable()
@@ -14,7 +15,7 @@ export class OrganizationsService {
     const memberships = await this.db.member.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
-      select: { role: true, organization: { select: { id: true, name: true, slug: true } } },
+      select: { role: true, organization: { select: { id: true, name: true, slug: true, code: true } } },
     });
     return {
       organizations: memberships.map((membership) => ({
@@ -26,8 +27,8 @@ export class OrganizationsService {
 
   async resolve(code: string) {
     const organization = await this.db.organization.findUnique({
-      where: { slug: code },
-      select: { name: true, slug: true },
+      where: { code: code.toUpperCase() },
+      select: { name: true, slug: true, code: true },
     });
     if (!organization) {
       throw new NotFoundException("We couldn't find a campus with that code. Ask your campus administrator for the right one.");
@@ -42,7 +43,16 @@ export class OrganizationsService {
       throw new ConflictException("You already belong to a campus.");
     }
 
-    const slug = await uniqueSlug(slugify(dto.name));
+    const slug = dto.slug ?? (await uniqueSlug(slugify(dto.name)));
+    if (dto.slug) {
+      const taken = await this.db.organization.findUnique({ where: { slug: dto.slug }, select: { id: true } });
+      if (taken) throw new ConflictException("That subdomain is already taken. Try another.");
+    }
+    const code = dto.code ?? (await uniqueCampusCode(dto.name));
+    if (dto.code) {
+      const taken = await this.db.organization.findUnique({ where: { code: dto.code }, select: { id: true } });
+      if (taken) throw new ConflictException("That campus code is already taken. Try another.");
+    }
 
     const headers = new Headers();
     if (cookieHeaders["cookie"]) headers.set("cookie", cookieHeaders["cookie"]);
@@ -52,7 +62,7 @@ export class OrganizationsService {
     }
 
     const organization = await auth.api.createOrganization({
-      body: { name: dto.name, slug },
+      body: { name: dto.name, slug, code },
       headers,
     });
     if (!organization?.id) {
@@ -87,7 +97,7 @@ export class OrganizationsService {
 
   
   async join(userId: string, dto: JoinOrganizationDto) {
-    const organization = await this.db.organization.findUnique({ where: { slug: dto.campusCode }, select: { id: true, name: true, slug: true } });
+    const organization = await this.db.organization.findUnique({ where: { code: dto.campusCode }, select: { id: true, name: true, slug: true, code: true } });
     if (!organization) {
       throw new NotFoundException("We couldn't find a campus with that code. Ask your campus administrator for the right one.");
     }
@@ -100,7 +110,7 @@ export class OrganizationsService {
 
     const { next: staffNo } = await this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT 1 FROM "organization" WHERE "id" = ${organization.id} FOR UPDATE`;
-      const next = await nextStaffNo(tx, organization.id, organization.slug);
+      const next = await nextStaffNo(tx, organization.id, organization.code);
       await tx.user.update({
         where: { id: userId },
         data: {

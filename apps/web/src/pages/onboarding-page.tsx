@@ -40,7 +40,9 @@ export function OnboardingPage() {
   const [me, setMe] = useState<SessionUser | null>(null);
 
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ organizationName: "", adminName: "", adminEmail: "", adminPassword: "", adminDepartment: "" });
+  const [form, setForm] = useState({ organizationName: "", subdomain: "", code: "", adminName: "", adminEmail: "", adminPassword: "", adminDepartment: "" });
+  const [subdomainTouched, setSubdomainTouched] = useState(false);
+  const [codeTouched, setCodeTouched] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [selected, setSelected] = useState<string[]>(["Electrical Fault", "Plumbing & Water", "Internet & Network"]);
   const [customs, setCustoms] = useState<string[]>([]);
@@ -48,8 +50,8 @@ export function OnboardingPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState<{ slug: string; orgName: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [done, setDone] = useState<{ subdomain: string; code: string; orgName: string } | null>(null);
+  const [copied, setCopied] = useState<"subdomain" | "code" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +71,15 @@ export function OnboardingPage() {
   }, []);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const codePreview = slugify(form.organizationName);
+  function codeFromName(name: string): string {
+    const words = name.trim().split(/[^A-Za-z0-9]+/).filter(Boolean);
+    const initials = words.map((w) => w[0]!.toUpperCase()).join("");
+    if (initials.length >= 2) return initials.slice(0, 10);
+    const compact = name.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return compact ? compact.slice(0, 4) : "";
+  }
+  const subdomain = subdomainTouched ? form.subdomain : slugify(form.organizationName);
+  const code = codeTouched ? form.code : codeFromName(form.organizationName);
 
   const categoryPayload = useMemo(
     () => [
@@ -99,6 +109,8 @@ export function OnboardingPage() {
     const e: Record<string, string> = {};
     if (current === 1) {
       if (form.organizationName.trim().length < 2) e.organizationName = "Enter your campus or university name.";
+      if (!/^[a-z0-9](-?[a-z0-9])*$/.test(subdomain) || subdomain.length < 2) e.subdomain = "Subdomain uses lowercase letters, numbers and dashes (2+ characters).";
+      if (!/^[A-Z0-9]{2,10}$/.test(code)) e.code = "Campus code is 2 to 10 letters and numbers.";
     } else if (current === 2) {
       if (form.adminName.trim().length < 2) e.adminName = "Please enter your full name.";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.adminEmail.trim())) e.adminEmail = "Enter a valid email address.";
@@ -125,10 +137,12 @@ export function OnboardingPage() {
         method: "POST",
         body: JSON.stringify({ name: form.adminName.trim(), email: form.adminEmail.trim(), password: form.adminPassword }),
       });
-      const res = await api<{ id: string; name: string; slug: string }>("/api/organizations", {
+      const res = await api<{ id: string; name: string; slug: string; code: string }>("/api/organizations", {
         method: "POST",
         body: JSON.stringify({
           name: form.organizationName.trim(),
+          slug: subdomain,
+          code,
           categories: categoryPayload,
           ...(form.adminDepartment.trim() ? { department: form.adminDepartment.trim() } : {}),
         }),
@@ -136,7 +150,7 @@ export function OnboardingPage() {
       const me = await api<{ user: SessionUser }>("/api/me");
       setUser(me.user);
       setAuthChecked(true);
-      setDone({ slug: res.slug, orgName: res.name });
+      setDone({ subdomain: res.slug, code: res.code, orgName: res.name });
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Unable to create your campus right now.");
     } finally {
@@ -144,14 +158,14 @@ export function OnboardingPage() {
     }
   }
 
-  async function copyCode() {
+  async function copyDone(value: string, kind: "subdomain" | "code") {
     if (!done) return;
     try {
-      await navigator.clipboard.writeText(done.slug);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 2000);
     } catch {
-      
+      // clipboard unavailable — the value stays visible on screen
     }
   }
 
@@ -233,15 +247,25 @@ export function OnboardingPage() {
               <CheckCircle2 className="h-12 w-12 text-foreground" />
               <h2 className="mt-4 text-2xl font-semibold">{done.orgName} is live</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Your campus workspace is ready. Share this code with your staff. They'll enter it when they create their accounts.
+                Your campus workspace is ready. Staff join with the campus code — they'll enter it when they create their accounts.
               </p>
-              <div className="mt-5 rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
-                <p className="text-xs font-semibold  text-muted-foreground">Campus code</p>
-                <p className="mt-1 text-2xl font-bold tabular-nums tracking-[0.08em]">{done.slug}</p>
-                <Button variant="outline" size="sm" className="mt-3" onClick={copyCode}>
-                  {copied ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy code"}
-                </Button>
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
+                  <p className="text-xs font-semibold text-muted-foreground">Subdomain</p>
+                  <p className="mt-1 break-all text-lg font-bold tabular-nums">{done.subdomain}</p>
+                  <Button variant="outline" size="sm" className="mt-3 h-8 text-xs" onClick={() => copyDone(done.subdomain, "subdomain")}>
+                    {copied === "subdomain" ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy"}
+                  </Button>
+                </div>
+                <div className="rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
+                  <p className="text-xs font-semibold text-muted-foreground">Campus code</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums tracking-[0.08em]">{done.code}</p>
+                  <Button variant="outline" size="sm" className="mt-3 h-8 text-xs" onClick={() => copyDone(done.code, "code")}>
+                    {copied === "code" ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy code"}
+                  </Button>
+                </div>
               </div>
+              <p className="mt-3 text-center text-xs text-muted-foreground">Staff and student numbers start with the code — e.g. {done.code}/0001.</p>
               <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> You're signed in as the first <span className="font-medium text-foreground">&nbsp;administrator</span>.</li>
                 <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> Staff who sign up with this code join your campus automatically.</li>
@@ -267,11 +291,20 @@ export function OnboardingPage() {
                     <Label htmlFor="ob-org">Campus or university name</Label>
                     <Input id="ob-org" placeholder="e.g. Example University" value={form.organizationName} onChange={(e) => set("organizationName", e.target.value)} autoFocus />
                     {errors.organizationName && <p className="text-xs text-destructive">{errors.organizationName}</p>}
-                    {codePreview && (
-                      <p className="pt-1 text-xs text-muted-foreground">
-                        Campus code: <span className="tabular-nums font-semibold text-foreground">{codePreview}</span>. Staff enter this when signing up.
-                      </p>
-                    )}
+                  </div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ob-subdomain">Subdomain</Label>
+                      <Input id="ob-subdomain" placeholder="e.g. example-university" value={subdomain} onChange={(e) => { setSubdomainTouched(true); set("subdomain", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); }} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" />
+                      {errors.subdomain && <p className="text-xs text-destructive">{errors.subdomain}</p>}
+                      <p className="text-[11px] text-muted-foreground">The campus address label.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ob-code">Campus code</Label>
+                      <Input id="ob-code" placeholder="e.g. EU" value={code} onChange={(e) => { setCodeTouched(true); set("code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10)); }} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={10} className="font-mono uppercase" />
+                      {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
+                      <p className="text-[11px] text-muted-foreground">Staff and student numbers start with the code — e.g. {code || "MOU"}/0001.</p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -366,7 +399,15 @@ export function OnboardingPage() {
                   <dl className="mt-5 divide-y divide-border rounded-2xl border border-border">
                     <div className="flex items-start justify-between gap-4 p-4">
                       <dt className="text-sm font-medium text-muted-foreground">Campus</dt>
-                      <dd className="text-right text-sm font-semibold">{form.organizationName.trim()}<br /><span className="tabular-nums text-xs font-normal text-muted-foreground">{codePreview}</span></dd>
+                      <dd className="text-right text-sm font-semibold">{form.organizationName.trim()}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-4 p-4">
+                      <dt className="text-sm font-medium text-muted-foreground">Subdomain</dt>
+                      <dd className="text-right text-sm font-semibold tabular-nums">{subdomain}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-4 p-4">
+                      <dt className="text-sm font-medium text-muted-foreground">Campus code</dt>
+                      <dd className="text-right text-sm font-semibold tabular-nums">{code}</dd>
                     </div>
                     <div className="flex items-start justify-between gap-4 p-4">
                       <dt className="text-sm font-medium text-muted-foreground">Administrator</dt>

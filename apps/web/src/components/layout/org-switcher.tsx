@@ -35,8 +35,8 @@ export function OrgSwitcher() {
       const me = await api<{ user: SessionUser }>("/api/me");
       setUser(me.user);
       refetch();
-      if (me.user.organizationCode) {
-        tNavigate({ to: "/$orgSlug", params: { orgSlug: me.user.organizationCode }, replace: true });
+      if (me.user.organizationSlug) {
+        tNavigate({ to: "/$orgSlug", params: { orgSlug: me.user.organizationSlug }, replace: true });
       }
     } catch (err) {
       console.error(err instanceof ApiError ? err.message : err);

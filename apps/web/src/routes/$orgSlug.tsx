@@ -23,7 +23,7 @@ function OrgGate() {
   const navigate = useNavigate();
   useEnsureSession();
 
-  const isOwnOrg = Boolean(user?.organizationCode && user.organizationCode === orgSlug);
+  const isOwnOrg = Boolean(user?.organizationSlug && user.organizationSlug === orgSlug);
   const { data: orgs, loading: orgsLoading } = useFetch<{ organizations: OrgSummary[] }>(!user || isOwnOrg ? null : "/api/organizations");
   const membership = orgs?.organizations.find((o) => o.slug === orgSlug);
   const [switching, setSwitching] = useState(false);
@@ -66,8 +66,8 @@ function OrgGate() {
           <h1 className="text-2xl font-semibold tracking-tight">No campus at that link</h1>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">This campus code doesn&apos;t match any campus your account belongs to.</p>
         </div>
-        {user.organizationCode ? (
-          <Button onClick={() => navigate({ to: "/$orgSlug", params: { orgSlug: user.organizationCode! } })}>Back to your campus</Button>
+        {user.organizationSlug ? (
+          <Button onClick={() => navigate({ to: "/$orgSlug", params: { orgSlug: user.organizationSlug! } })}>Back to your campus</Button>
         ) : (
           <Button onClick={() => navigate({ to: "/onboarding" })}>Set up a campus</Button>
         )}

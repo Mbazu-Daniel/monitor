@@ -20,8 +20,8 @@ function Home() {
   }
 
   if (user) {
-    return user.organizationCode ? (
-      <Navigate to="/$orgSlug" params={{ orgSlug: user.organizationCode }} replace />
+    return user.organizationSlug ? (
+      <Navigate to="/$orgSlug" params={{ orgSlug: user.organizationSlug }} replace />
     ) : (
       <Navigate to="/onboarding" replace />
     );

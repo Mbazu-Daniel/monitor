@@ -23,7 +23,7 @@ pnpm install
 # start Postgres on :54443 (see docker-compose.yml)
 docker compose up -d postgres
 
-# apply the schema and seed the demo campus (miva-open-university)
+# apply the schema and seed the demo campus (MIVA Open University, subdomain miva-open-university, code MOU)
 cd apps/api && pnpm db:push && pnpm db:seed && cd ../..
 
 # run web and API together

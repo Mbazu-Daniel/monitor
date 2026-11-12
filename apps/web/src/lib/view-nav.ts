@@ -52,7 +52,7 @@ export function viewFromPath(pathname: string, slug: string): ViewKey | null {
 
 export function useViewNav() {
   const router = useRouter();
-  const slug = useAppStore((s) => s.user?.organizationCode);
+  const slug = useAppStore((s) => s.user?.organizationSlug);
   return (view: ViewKey, reference?: string) => {
     if (!slug) return;
     if (view === "request-detail") {

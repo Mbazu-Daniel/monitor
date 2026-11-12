@@ -7,10 +7,10 @@ type StaffNoContext = {
 export async function nextStaffNo(
   ctx: StaffNoContext,
   organizationId: string,
-  slug: string,
+  code: string,
   role: "STAFF" | "STUDENT" = "STAFF",
   prefix = "",
 ) {
   const count = await ctx.member.count({ where: { organizationId, role } });
-  return `${slug}/${prefix}${String(count + 1).padStart(4, "0")}`;
+  return `${code}/${prefix}${String(count + 1).padStart(4, "0")}`;
 }

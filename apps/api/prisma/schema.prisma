@@ -84,6 +84,7 @@ model Organization {
   id             String   @id @default(cuid())
   name           String
   slug           String   @unique
+  code           String   @unique
   logo           String?
   metadata       String?
   nextRequestSeq Int      @default(1)

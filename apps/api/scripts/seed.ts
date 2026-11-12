@@ -33,16 +33,17 @@ async function main() {
   const officer1 = await createCredentialUser({ name: "John Okafor", email: "officer1@university.edu", password: "Officer@123", department: "Electrical Unit", phone: "0803 222 0002" });
   const officer2 = await createCredentialUser({ name: "Amina Bello", email: "officer2@university.edu", password: "Officer@123", department: "Plumbing Unit", phone: "0803 333 0003" });
   const officer3 = await createCredentialUser({ name: "Emeka Nwosu", email: "officer3@university.edu", password: "Officer@123", department: "ICT Support", phone: "0803 444 0004" });
-  const staff2 = await createCredentialUser({ name: "Chinedu Okoro", email: "staff2@university.edu", password: "Staff@123", department: "Computer Science", matricNo: "miva-open-university/0001", phone: "0803 555 0005" });
-  const staff3 = await createCredentialUser({ name: "Fatima Sule", email: "staff3@university.edu", password: "Staff@123", department: "Mass Communication", matricNo: "miva-open-university/0002" });
-  const staff = await createCredentialUser({ name: "Mrs. Funke Adeyemi", email: "staff@university.edu", password: "Staff@123", department: "Registry", matricNo: "miva-open-university/0003" });
-  const student = await createCredentialUser({ name: "Tobi Adebisi", email: "student@university.edu", password: "Student@123", department: "Computer Science", matricNo: "miva-open-university/S0001", phone: "0803 666 0006" });
+  const staff2 = await createCredentialUser({ name: "Chinedu Okoro", email: "staff2@university.edu", password: "Staff@123", department: "Computer Science", matricNo: "MOU/0001", phone: "0803 555 0005" });
+  const staff3 = await createCredentialUser({ name: "Fatima Sule", email: "staff3@university.edu", password: "Staff@123", department: "Mass Communication", matricNo: "MOU/0002" });
+  const staff = await createCredentialUser({ name: "Mrs. Funke Adeyemi", email: "staff@university.edu", password: "Staff@123", department: "Registry", matricNo: "MOU/0003" });
+  const student = await createCredentialUser({ name: "Tobi Adebisi", email: "student@university.edu", password: "Student@123", department: "Computer Science", matricNo: "MOU/S0001", phone: "0803 666 0006" });
 
   console.log("Creating demo campus…");
   const demoOrg = await db.organization.create({
     data: {
       name: "MIVA Open University",
       slug: "miva-open-university",
+      code: "MOU",
       memberships: {
         create: [
           { userId: admin.id, role: "ADMIN" },
@@ -57,7 +58,7 @@ async function main() {
       },
     },
   });
-  console.log(`Campus code for new signups: ${demoOrg.slug}`);
+  console.log(`Subdomain: ${demoOrg.slug} · Campus code for signups: ${demoOrg.code}`);
 
   const members = await db.member.findMany({ where: { organizationId: demoOrg.id }, select: { id: true, userId: true } });
   const midMap = new Map(members.map((m) => [m.userId, m.id] as const));
@@ -257,7 +258,7 @@ async function main() {
     comments: await db.comment.count(),
   };
   console.log("Seed complete:", JSON.stringify(counts));
-  console.log(`Demo campus code: ${demoOrg.slug}`);
+  console.log(`Demo campus code: ${demoOrg.code}`);
 }
 
 main()

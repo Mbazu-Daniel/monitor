@@ -25,7 +25,7 @@ export class MeService {
     const [membership, organization] = organizationId
       ? await Promise.all([
           this.db.member.findUnique({ where: { organizationId_userId: { organizationId, userId } } }),
-          this.db.organization.findUnique({ where: { id: organizationId }, select: { name: true, slug: true } }),
+          this.db.organization.findUnique({ where: { id: organizationId }, select: { name: true, slug: true, code: true } }),
         ])
       : [null, null];
 
@@ -35,7 +35,8 @@ export class MeService {
         role: membership?.role ?? null,
         organizationId,
         organizationName: organization?.name ?? null,
-        organizationCode: organization?.slug ?? null,
+        organizationSlug: organization?.slug ?? null,
+        organizationCode: organization?.code ?? null,
       },
     };
   }

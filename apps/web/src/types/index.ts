@@ -14,6 +14,7 @@ export interface SessionUser {
   matricNo?: string | null;
   organizationId?: string | null;
   organizationName?: string | null;
+  organizationSlug?: string | null;
   organizationCode?: string | null;
   createdAt: string;
 }

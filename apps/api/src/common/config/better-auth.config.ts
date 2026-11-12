@@ -78,6 +78,13 @@ export const auth = betterAuth({
       creatorRole: "ADMIN",
       requireEmailVerificationOnInvitation: false,
       teams: undefined,
+      schema: {
+        organization: {
+          additionalFields: {
+            code: { type: "string", required: true, input: true, unique: true },
+          },
+        },
+      },
       ac,
       roles: { ADMIN, OFFICER, STAFF, STUDENT },
       sendInvitationEmail: async ({ id, email, role, organization: org, inviter }) => {

@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, sidebarOpen, setSidebarOpen } = useAppStore();
   const navigate = useViewNav();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const view = (user?.organizationCode ? viewFromPath(pathname, user.organizationCode) : null) ?? "dashboard";
+  const view = (user?.organizationSlug ? viewFromPath(pathname, user.organizationSlug) : null) ?? "dashboard";
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [badgeTick, setBadgeTick] = useState(0);
   const { data: notifData } = useFetch<NotificationsResponse>("/api/notifications?pageSize=1", {

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, RoleBadge, PageHeader, formatDateTime } from "@/components/shared";
 import {
-  Building2, Copy, Check, Save, KeyRound, Mail, Phone, Hash, User, Building, Loader2, ShieldCheck,
+  Building2, Copy, Check, Save, KeyRound, Mail, Phone, Hash, User, Building, Loader2, ShieldCheck, DoorOpen,
 } from "@/components/icons";
 
 const ROLE_LABELS: Record<string, string> = { STUDENT: "Student", STAFF: "Staff", OFFICER: "Officer", ADMIN: "Admin" };
@@ -259,22 +259,23 @@ function ProfilePanel() {
 
 function OrganizationPanel() {
   const { user } = useAppStore();
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"subdomain" | "code" | null>(null);
 
   if (!user) return null;
 
   const code = user.organizationCode ?? null;
+  const subdomain = user.organizationSlug ?? null;
   const isAdmin = user.role === "ADMIN";
 
-  async function copyCode() {
-    if (!code) return;
+  async function copyValue(value: string | null, kind: "subdomain" | "code") {
+    if (!value) return;
     try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      toast.success("Campus code copied.");
-      window.setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      toast.success(kind === "code" ? "Campus code copied." : "Subdomain copied.");
+      window.setTimeout(() => setCopied(null), 2000);
     } catch {
-      toast.error("Couldn't copy the code. Select and copy it manually.");
+      toast.error("Couldn't copy to the clipboard. Select and copy it manually.");
     }
   }
 
@@ -287,15 +288,27 @@ function OrganizationPanel() {
           </span>
           <p className="mt-4 max-w-full truncate text-lg font-semibold leading-tight">{user.organizationName ?? "Your campus"}</p>
           <p className="mt-0.5 text-xs uppercase tracking-[0.12em] text-muted-foreground">Campus</p>
-          <div className="mt-4 flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-secondary/40 px-4 py-3">
-            <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Campus code</span>
-            <span className="font-mono text-lg font-semibold tracking-wide">{code ?? "…"}</span>
-            {code && (
-              <Button variant="outline" size="sm" className="mt-1 h-8 text-xs" onClick={copyCode} aria-label="Copy campus code">
-                {copied ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
-                {copied ? "Copied" : "Copy code"}
-              </Button>
-            )}
+          <div className="mt-4 flex w-full flex-col gap-2">
+            <div className="flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed border-border bg-secondary/40 px-4 py-2.5">
+              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Subdomain</span>
+              <span className="font-mono text-base font-semibold tracking-wide">{subdomain ?? "…"}</span>
+              {subdomain && (
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyValue(subdomain, "subdomain")} aria-label="Copy subdomain">
+                  {copied === "subdomain" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                  {copied === "subdomain" ? "Copied" : "Copy"}
+                </Button>
+              )}
+            </div>
+            <div className="flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed border-border bg-secondary/40 px-4 py-2.5">
+              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Campus code</span>
+              <span className="font-mono text-lg font-semibold tracking-wide">{code ?? "…"}</span>
+              {code && (
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyValue(code, "code")} aria-label="Copy campus code">
+                  {copied === "code" ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                  {copied === "code" ? "Copied" : "Copy code"}
+                </Button>
+              )}
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <RoleBadge role={user.role} />
@@ -318,6 +331,7 @@ function OrganizationPanel() {
           <CardContent>
             <ul className="grid gap-4 sm:grid-cols-2">
               <DetailRow icon={Building} label="Campus" value={user.organizationName} />
+              <DetailRow icon={DoorOpen} label="Subdomain" value={subdomain} placeholder="…" />
               <DetailRow icon={Hash} label="Campus code" value={code} placeholder="…" />
               <DetailRow icon={KeyRound} label="Your role" value={user.role ? ROLE_LABELS[user.role] ?? user.role : undefined} />
               <DetailRow icon={Mail} label="Sign-in email" value={user.email} />
@@ -344,9 +358,9 @@ function OrganizationPanel() {
                 <p className="mt-0.5 truncate font-mono text-base font-semibold">{code ?? "…"}</p>
               </div>
               {code && (
-                <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs" onClick={copyCode} aria-label="Copy campus code">
-                  {copied ? <Check className="mr-1.5 h-4 w-4" /> : <Copy className="mr-1.5 h-4 w-4" />}
-                  {copied ? "Copied" : "Copy code"}
+                <Button variant="outline" size="sm" className="h-9 shrink-0 text-xs" onClick={() => copyValue(code, "code")} aria-label="Copy campus code">
+                  {copied === "code" ? <Check className="mr-1.5 h-4 w-4" /> : <Copy className="mr-1.5 h-4 w-4" />}
+                  {copied === "code" ? "Copied" : "Copy code"}
                 </Button>
               )}
             </div>

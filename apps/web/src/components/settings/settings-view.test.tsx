@@ -16,9 +16,10 @@ function makeUserSession(role: SessionUser["role"]): SessionUser {
     name: "Ada Admin",
     email: "ada@miva.edu",
     role,
-    organizationCode: "miva-open-university",
+    organizationSlug: "miva-open-university",
+    organizationCode: "MOU",
     organizationName: "MIVA Open University",
-    matricNo: "miva-open-university/0001",
+    matricNo: "MOU/0001",
     createdAt: "2026-11-01T00:00:00.000Z",
   };
 }

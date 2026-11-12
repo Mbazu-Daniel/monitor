@@ -13,7 +13,7 @@ export function RequestDetailDrawer() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   function close() {
-    const slug = user?.organizationCode;
+    const slug = user?.organizationSlug;
     closeDetail();
     if (slug && pathname.startsWith(`/${slug}/requests/`) && pathname !== `/${slug}/requests`) {
       void navigate({ to: "/$orgSlug/requests", params: { orgSlug: slug } });

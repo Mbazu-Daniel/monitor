@@ -201,14 +201,14 @@ export function CreateAccountForm({ onCreated }: { onCreated: () => void }) {
 export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionUser) => void; onBack: () => void }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({ campusCode: "", department: "", phone: "" });
-  const [campus, setCampus] = useState<{ name: string; slug: string } | null>(null);
+  const [campus, setCampus] = useState<{ name: string; slug: string; code: string } | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const setCode = (v: string) => {
-    setForm((f) => ({ ...f, campusCode: v }));
+    setForm((f) => ({ ...f, campusCode: v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) }));
     setCampus(null);
   };
 
@@ -222,7 +222,7 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
     if (code.trim().length < 2) return null;
     setVerifying(true);
     try {
-      const res = await api<{ organization: { name: string; slug: string } }>(`/api/organizations/resolve?code=${encodeURIComponent(code.trim().toLowerCase())}`);
+      const res = await api<{ organization: { name: string; slug: string; code: string } }>(`/api/organizations/resolve?code=${encodeURIComponent(code.trim().toUpperCase())}`);
       setCampus(res.organization);
       return res.organization;
     } catch {
@@ -245,10 +245,10 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
     try {
       const joined = await api<{ staffNo: string | null }>("/api/organizations/join", {
         method: "POST",
-        body: JSON.stringify({ campusCode: valid.slug, department: form.department, phone: form.phone }),
+        body: JSON.stringify({ campusCode: valid.code, department: form.department, phone: form.phone }),
       });
       const res = await api<{ user: SessionUser }>("/api/me");
-      toast.success(joined.staffNo ? `Welcome to ${valid.name} (${valid.slug}). Your staff no. is ${joined.staffNo}` : `Welcome to ${valid.name}.`);
+      toast.success(joined.staffNo ? `Welcome to ${valid.name} (${valid.code}). Your staff no. is ${joined.staffNo}` : `Welcome to ${valid.name}.`);
       onAuthed(res.user);
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Unable to join the campus right now.");
@@ -268,7 +268,7 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
         </div>
         <div className="relative">
           <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" strokeWidth={2} />
-          <Input id="reg-campus" placeholder="e.g. miva-open-university" value={form.campusCode} onChange={(e) => setCode(e.target.value)} onBlur={() => form.campusCode.trim().length >= 2 && verify(form.campusCode)} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="h-11 rounded-md border-input bg-card pl-10 pr-10 transition-colors placeholder:text-muted-foreground" autoFocus />
+          <Input id="reg-campus" placeholder="e.g. MOU" value={form.campusCode} onChange={(e) => setCode(e.target.value)} onBlur={() => form.campusCode.trim().length >= 2 && verify(form.campusCode)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={10} className="h-11 rounded-md border-input bg-card pl-10 pr-10 font-mono uppercase tracking-wider transition-colors placeholder:text-muted-foreground placeholder:font-sans placeholder:normal-case placeholder:tracking-normal" autoFocus />
           {verifying ? (
             <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--accent)]" />
           ) : campus ? (
@@ -278,7 +278,7 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
           ) : null}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          {campus ? <span className="font-semibold text-foreground">Joining {campus.name} · <span className="tabular-nums">{campus.slug}</span></span> : (<>Code from your campus admin. No campus yet? <button type="button" onClick={() => navigate({ to: "/onboarding" })} className="font-semibold text-[var(--cta)] hover:underline">Set one up</button></>)}
+          {campus ? <span className="font-semibold text-foreground">Joining {campus.name} · <span className="tabular-nums">{campus.code}</span></span> : (<>Code from your campus admin. No campus yet? <button type="button" onClick={() => navigate({ to: "/onboarding" })} className="font-semibold text-[var(--cta)] hover:underline">Set one up</button></>)}
         </p>
       </div>
 
@@ -295,7 +295,7 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
           <Input id="reg-phone" placeholder="0803 000 0000" value={form.phone} onChange={(e) => set("phone", e.target.value)} className="h-11 rounded-md border-input bg-card transition-colors placeholder:text-muted-foreground" />
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">Staff no. is issued automatically: <span className="tabular-nums">{campus ? `${campus.name} (${campus.slug})/0001` : "campus/0001"}</span></p>
+      <p className="text-[11px] text-muted-foreground">Staff no. is issued automatically: <span className="tabular-nums">{campus ? `${campus.code}/0001` : "CODE/0001"}</span></p>
 
       <Button type="submit" className="h-12 w-full text-[16px]" disabled={loading}>
         {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Joining campus…</> : <>Join campus <ArrowRight className="ml-2 h-4 w-4" /></>}

@@ -19,7 +19,7 @@ export class OrganizationsController {
   @Get("resolve")
   resolve(@Query("code") code?: string) {
     if (!code?.trim()) throw new BadRequestException("Enter a campus code.");
-    return this.orgs.resolve(code.trim().toLowerCase());
+    return this.orgs.resolve(code.trim().toUpperCase());
   }
 
   

@@ -106,7 +106,7 @@ export class UsersService {
     const existing = await this.db.user.findUnique({ where: { email } });
     if (existing) throw new ConflictException("A user with this email already exists.");
 
-    const org = organizationId ? await this.db.organization.findUnique({ where: { id: organizationId }, select: { slug: true } }) : null;
+    const org = organizationId ? await this.db.organization.findUnique({ where: { id: organizationId }, select: { code: true } }) : null;
 
     const user = await createCredentialUser({
       name: dto.name,
@@ -124,8 +124,8 @@ export class UsersService {
         if (!assignedMatricNo && (dto.role === "STAFF" || dto.role === "STUDENT")) {
           await tx.$executeRaw`SELECT 1 FROM "organization" WHERE "id" = ${organizationId} FOR UPDATE`;
           assignedMatricNo = dto.role === "STUDENT"
-            ? await nextStaffNo(tx, organizationId, org.slug, "STUDENT", "S")
-            : await nextStaffNo(tx, organizationId, org.slug, "STAFF");
+            ? await nextStaffNo(tx, organizationId, org.code, "STUDENT", "S")
+            : await nextStaffNo(tx, organizationId, org.code, "STAFF");
           await tx.user.update({ where: { id: user.id }, data: { matricNo: assignedMatricNo } });
         }
         await tx.member.create({ data: { organizationId, userId: user.id, role: dto.role } });
