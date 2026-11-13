@@ -1,6 +1,6 @@
 import "dotenv/config";
 import compression from "compression";
-import { Logger, StandardSchemaValidationPipe } from "@nestjs/common";
+import { Logger, RequestMethod, StandardSchemaValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { NestNodeApplication, NodeAdapter } from "@nestjs/platform-node";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
@@ -38,7 +38,7 @@ async function bootstrap() {
     app.enableCors({ origin: getConfig().webOrigins, credentials: true });
   }
 
-  app.setGlobalPrefix("api/v1");
+  app.setGlobalPrefix("api/v1", { exclude: [{ path: "/", method: RequestMethod.GET }] });
   app.useGlobalPipes(new StandardSchemaValidationPipe());
 
   const document = SwaggerModule.createDocument(
