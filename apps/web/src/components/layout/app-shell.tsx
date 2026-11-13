@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useFetch } from "@/hooks/use-fetch";
-import { apiUrl } from "@/lib/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -18,6 +17,7 @@ import { NavbarAccount } from "@/components/layout/navbar-account";
 import { NotificationsPanel, NOTIFICATIONS_REFRESH } from "@/components/notifications/notifications-panel";
 import { RequestDetailDrawer } from "@/components/requests/request-detail-drawer";
 import { useViewNav, viewFromPath } from "@/lib/view-nav";
+import { useCampusEvents } from "@/hooks/use-campus-events";
 import { useRouterState } from "@tanstack/react-router";
 import type { ViewKey } from "@/stores/app-store";
 
@@ -56,15 +56,11 @@ function currentLabelFor(items: NavItem[], view: ViewKey): string {
 
 function useRealtimeNotifications() {
   const [badgeTick, setBadgeTick] = useState(0);
+  useCampusEvents(() => { window.dispatchEvent(new Event(NOTIFICATIONS_REFRESH)); });
   useEffect(() => {
     const refresh = () => setBadgeTick((t) => t + 1);
     window.addEventListener(NOTIFICATIONS_REFRESH, refresh);
-    const source = new EventSource(apiUrl("/api/realtime/stream"));
-    source.onmessage = () => { window.dispatchEvent(new Event(NOTIFICATIONS_REFRESH)); };
-    return () => {
-      window.removeEventListener(NOTIFICATIONS_REFRESH, refresh);
-      source.close();
-    };
+    return () => window.removeEventListener(NOTIFICATIONS_REFRESH, refresh);
   }, []);
   return badgeTick;
 }

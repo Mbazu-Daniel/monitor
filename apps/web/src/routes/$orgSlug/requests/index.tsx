@@ -3,7 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RequestsListView } from "@/components/requests/requests-list";
 
-type RequestsSearch = {
+export type RequestsSearch = {
   status?: string;
   priority?: string;
   categoryId?: string;

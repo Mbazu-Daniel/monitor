@@ -15,7 +15,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryIcon, PageHeader } from "@/components/shared";
 import { Folio } from "@/components/shared/folio";
-import { MAX_IMAGE_MIME_TYPES, MAX_UPLOAD_BYTES } from "@mivacampus/contracts";
+import { MAX_IMAGE_MIME_TYPES, MAX_UPLOAD_BYTES, createRequestSchema } from "@mivacampus/contracts";
+import { fieldErrors } from "@/lib/field-errors";
 import type { Category, Priority } from "@/types";
 import {
   ArrowLeft, ImagePlus, Loader2, Paperclip, X, CheckCircle2, FileText,
@@ -266,13 +267,10 @@ export function RequestFormView() {
   }, [catData, categoryId]);
 
   function validate(): boolean {
-    const e: Record<string, string> = {};
-    if (!categoryId) e.categoryId = "Please choose a category.";
-    if (title.trim().length < 5) e.title = "Title must be at least 5 characters.";
-    if (description.trim().length < 15) e.description = "Please describe the issue in at least 15 characters so officers can help quickly.";
-    if (location.trim().length < 3) e.location = "Where is the problem? (e.g. Block C, Room 214)";
+    const result = createRequestSchema.safeParse({ title: title.trim(), description: description.trim(), categoryId, location: location.trim(), priority });
+    const e = result.success ? {} : fieldErrors(result.error);
     setErrors(e);
-    return Object.keys(e).length === 0;
+    return result.success;
   }
 
   function onFiles(files: FileList | null) {

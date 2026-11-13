@@ -12,12 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useFetch } from "@/hooks/use-fetch";
-import { api, ApiError } from "@/lib/client";
+import { ApiError } from "@/lib/client";
+import { toast } from "sonner";
+import { OrgSummary, switchOrganization } from "@/lib/organizations";
 import { useAppStore } from "@/stores/app-store";
-
-import type { SessionUser } from "@/types";
-
-type OrgSummary = { id: string; name: string; slug: string; role: string };
 
 function OrgAvatar({ name }: { name?: string }) {
   return (
@@ -49,15 +47,13 @@ export function OrgSwitcher() {
     if (org.id === user?.organizationId) return;
     setBusy(org.id);
     try {
-      await api("/api/auth/organization/set-active", { method: "POST", body: JSON.stringify({ organizationId: org.id }) });
-      const me = await api<{ user: SessionUser }>("/api/me");
-      setUser(me.user);
+      const user = await switchOrganization(org.id, setUser);
       refetch();
-      if (me.user.organizationSlug) {
-        tNavigate({ to: "/$orgSlug", params: { orgSlug: me.user.organizationSlug }, replace: true });
+      if (user.organizationSlug) {
+        tNavigate({ to: "/$orgSlug", params: { orgSlug: user.organizationSlug }, replace: true });
       }
     } catch (err) {
-      console.error(err instanceof ApiError ? err.message : err);
+      toast.error(err instanceof ApiError ? err.message : "Could not switch campus");
     } finally {
       setBusy(null);
     }

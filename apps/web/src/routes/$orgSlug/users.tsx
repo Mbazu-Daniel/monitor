@@ -2,12 +2,12 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { RequireRole } from "@/components/layout/require-role";
-import { UsersView } from "@/components/admin/admin-users";
+import { UserManagement } from "@/components/admin/user-management";
 
 export const Route = createFileRoute("/$orgSlug/users")({
   component: () => (
     <RequireRole roles={["ADMIN"]}>
-      <UsersView />
+      <UserManagement scope="all" />
     </RequireRole>
   ),
 });

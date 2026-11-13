@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, RoleBadge, PageHeader, formatDateTime } from "@/components/shared";
+import { passwordMeetsPolicy } from "@mivacampus/contracts";
+import { ROLE_LABELS } from "@/lib/roles";
+import { useCopied } from "@/hooks/use-copied";
+import type { UserRole } from "@/types";
 import {
   Building2, Copy, Check, Save, KeyRound, Mail, Phone, Hash, User, Building, Loader2, ShieldCheck, DoorOpen,
 } from "@/components/icons";
-
-const ROLE_LABELS: Record<string, string> = { STUDENT: "Student", STAFF: "Staff", OFFICER: "Officer", ADMIN: "Admin" };
 
 function matricNoLabel(role?: string | null): string {
   return role === "STUDENT" ? "Student no." : "Staff no.";
@@ -152,7 +154,7 @@ function ProfilePanel() {
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
-    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+    if (!passwordMeetsPolicy(newPassword)) {
       return toast.error("New password must be at least 8 characters with letters and numbers.");
     }
     setSavingPwd(true);
@@ -280,27 +282,8 @@ function CopyField({ label, value, kind, copied, onCopy, large, buttonLabel }: {
   );
 }
 
-function useCopied() {
-  const [copied, setCopied] = useState<"subdomain" | "code" | null>(null);
-
-  async function copy(value: string | null, kind: "subdomain" | "code") {
-    if (!value) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(kind);
-      toast.success(kind === "code" ? "Campus code copied." : "Subdomain copied.");
-      window.setTimeout(() => setCopied(null), 2000);
-    } catch {
-      toast.error("Couldn't copy to the clipboard. Select and copy it manually.");
-    }
-  }
-
-  return { copied, copy };
-}
-
-function roleLabel(role?: string | null): string | undefined {
-  if (!role) return undefined;
-  return ROLE_LABELS[role] ?? role;
+function roleLabel(role?: UserRole | null): string | undefined {
+  return role ? ROLE_LABELS[role] : undefined;
 }
 
 function MembershipCard({ code, isAdmin, copied, onCopy }: { code: string | null; isAdmin: boolean; copied: "subdomain" | "code" | null; onCopy: (value: string, kind: "subdomain" | "code") => void }) {
@@ -342,7 +325,7 @@ function MembershipCard({ code, isAdmin, copied, onCopy }: { code: string | null
 
 function OrganizationPanel() {
   const { user } = useAppStore();
-  const { copied, copy } = useCopied();
+  const { copied, copy } = useCopied<"subdomain" | "code">();
 
   if (!user) return null;
 

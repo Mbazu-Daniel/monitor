@@ -51,8 +51,6 @@ function AuditRow({ a }: { a: AuditLogRow }) {
   );
 }
 
-const allToEmpty = (v: string) => (v === "all" ? "" : v);
-
 function actionLabel(action: string): string {
   if (!action) return "All actions";
   return ACTION_GROUPS.find((g) => g.value === action)?.label ?? action;
@@ -74,7 +72,7 @@ function AuditLogFilters({ searchInput, searchValue, onSearchInput, action, onAc
           <Input className="pl-9" placeholder="Search action, user or details…" value={searchInput} onChange={(e) => onSearchInput(e.target.value)} aria-label="Search audit log" />
         </div>
         <div className="flex gap-2">
-          <Select value={action || "all"} onValueChange={(v) => onActionChange(allToEmpty(v))}>
+          <Select value={action || "all"} onValueChange={(v) => onActionChange(v === "all" ? "" : v)}>
             <SelectTrigger className="w-48" aria-label="Filter by action"><SelectValue>{actionLabel(action)}</SelectValue></SelectTrigger>
             <SelectContent>
               {ACTION_GROUPS.map((g) => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}

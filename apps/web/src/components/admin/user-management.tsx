@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { useAppStore } from "@/stores/app-store";
 import { api, ApiError, qs } from "@/lib/client";
-import { passwordMeetsPolicy } from "@mivacampus/contracts";
+import { passwordMeetsPolicy, createUserSchema, type UpdateUserDto } from "@mivacampus/contracts";
+import { ROLE_LABELS } from "@/lib/roles";
+import { fieldErrors } from "@/lib/field-errors";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,16 +21,12 @@ import {
   Search, Users, GraduationCap, UserPlus, RotateCcw, Loader2, KeyRound, ShieldCheck, ShieldOff, Pencil,
 } from "@/components/icons";
 
-const ROLE_SHORT: Record<string, string> = { STAFF: "Staff", OFFICER: "Officer", ADMIN: "Admin", STUDENT: "Student" };
 const ROLE_LONG: Record<string, string> = { STAFF: "Staff", OFFICER: "Maintenance Officer", ADMIN: "Administrator", STUDENT: "Student" };
 const ROLE_FILTER_LABELS: Record<string, string> = { STAFF: "Staff", OFFICER: "Officers", ADMIN: "Admins", STUDENT: "Students" };
-const ROLE_LABELS: Record<string, string> = { STAFF: "Staff", OFFICER: "Officer", ADMIN: "Admin", STUDENT: "Student" };
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const pluralize = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
-const statsFor = (role: string, count: { requests?: number; assignments?: number } | undefined) =>
-  role === "OFFICER" ? [pluralize(count?.assignments ?? 0, "job")] : [pluralize(count?.requests ?? 0, "request")];
+const statsLineText = (u: UserRow) =>
+  u.role === "OFFICER" ? pluralize(u._count?.assignments ?? 0, "job") : pluralize(u._count?.requests ?? 0, "request");
 
 export type UserManagerScope = "all" | "students";
 
@@ -47,7 +45,7 @@ const SCOPE = {
     emptyDescription: "Try a different search or role filter.",
     emptyCreateAction: false,
     footerNoun: (n: number) => (n === 1 ? "user" : "users"),
-    statsLine: (u: UserRow) => statsFor(u.role, u._count).join(" · "),
+    statsLine: statsLineText,
     showRoleBadge: false,
     showEditAction: false,
     selfGuard: true,
@@ -89,14 +87,9 @@ const SCOPE = {
   },
 } as const;
 
-function validateCreateUserForm(form: { name: string; email: string; password: string }) {
-  const e: Record<string, string> = {};
-  if (form.name.trim().length < 2) e.name = "Full name required.";
-  if (!EMAIL_RE.test(form.email.trim())) e.email = "Valid email required.";
-  if (!passwordMeetsPolicy(form.password)) {
-    e.password = "Password must be at least 8 characters with letters and numbers.";
-  }
-  return e;
+function validateCreateUserForm(form: { name: string; email: string; password: string }): Record<string, string> {
+  const result = createUserSchema.safeParse({ name: form.name, email: form.email, password: form.password });
+  return result.success ? {} : fieldErrors(result.error);
 }
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -126,7 +119,7 @@ export function UserManagement({ scope }: { scope: UserManagerScope }) {
   const query = useMemo(() => qs({ search, role: effectiveRole, page, pageSize: 8 }), [search, effectiveRole, page]);
   const { data, loading, error, refetch } = useFetch<Paginated<UserRow>>(`/api/users${query}`);
 
-  async function patchUser(id: string, payload: Record<string, unknown>, successMsg: string) {
+  async function patchUser(id: string, payload: UpdateUserDto, successMsg: string) {
     try {
       await api(`/api/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
       toast.success(successMsg);
@@ -235,7 +228,7 @@ function UserList({ scope, cfg, error, loading, data, search, onPage, onRetry, o
   onPage: (p: number | ((prev: number) => number)) => void;
   onRetry: () => void;
   onCreate: () => void;
-  onPatch: (id: string, payload: Record<string, unknown>, msg: string) => Promise<void>;
+  onPatch: (id: string, payload: UpdateUserDto, msg: string) => Promise<void>;
 }) {
   if (error) {
     return <ListError error={error} onRetry={() => void onRetry()} title={cfg.loadErrorTitle} icon={cfg.emptyIcon} />;
@@ -268,7 +261,7 @@ function UserList({ scope, cfg, error, loading, data, search, onPage, onRetry, o
   );
 }
 
-function UserRowCard({ scope, user: u, onPatch }: { scope: UserManagerScope; user: UserRow; onPatch: (id: string, payload: Record<string, unknown>, msg: string) => Promise<void> }) {
+function UserRowCard({ scope, user: u, onPatch }: { scope: UserManagerScope; user: UserRow; onPatch: (id: string, payload: UpdateUserDto, msg: string) => Promise<void> }) {
   const cfg = SCOPE[scope];
   const me = useAppStore((s) => s.user);
   const [editOpen, setEditOpen] = useState(false);
@@ -301,7 +294,7 @@ function UserRowCard({ scope, user: u, onPatch }: { scope: UserManagerScope; use
               <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
             </Button>
           ) : (
-            <RoleChangeSelect value={u.role} name={u.name} disabled={isSelf} onChange={(v) => onPatch(u.id, { role: v }, `${u.name} is now ${ROLE_LABELS[v] ?? v.toLowerCase()}.`)} />
+            <RoleChangeSelect value={u.role} name={u.name} disabled={isSelf} onChange={(v) => onPatch(u.id, { role: v }, `${u.name} is now ${ROLE_LABELS[v]}.`)} />
           )}
 
           <ActiveToggle isActive={u.isActive} disabled={cfg.selfGuard && isSelf} name={u.name} onToggle={(v) => onPatch(u.id, { isActive: v }, v ? `${u.name} reactivated.` : `${u.name} deactivated.`)} />
@@ -315,10 +308,10 @@ function UserRowCard({ scope, user: u, onPatch }: { scope: UserManagerScope; use
   );
 }
 
-function RoleChangeSelect({ value, name, disabled, onChange }: { value: string; name: string; disabled?: boolean; onChange: (v: string) => void }) {
+function RoleChangeSelect({ value, name, disabled, onChange }: { value: UserRole; name: string; disabled?: boolean; onChange: (v: UserRole) => void }) {
   return (
-    <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger className="h-8 w-28 text-xs" aria-label={`Change role for ${name}`}><SelectValue>{ROLE_SHORT[value] ?? value}</SelectValue></SelectTrigger>
+    <Select value={value} onValueChange={(v) => onChange(v as UserRole)} disabled={disabled}>
+      <SelectTrigger className="h-8 w-28 text-xs" aria-label={`Change role for ${name}`}><SelectValue>{ROLE_LABELS[value]}</SelectValue></SelectTrigger>
       <SelectContent>
         <SelectItem value="STAFF">Staff</SelectItem>
         <SelectItem value="OFFICER">Officer</SelectItem>
@@ -343,7 +336,7 @@ function ActiveToggle({ isActive, disabled, name, onToggle }: { isActive: boolea
   );
 }
 
-function ResetPasswordDialog({ target, onPatch }: { target: UserRow; onPatch: (id: string, payload: Record<string, unknown>, msg: string) => Promise<void> }) {
+function ResetPasswordDialog({ target, onPatch }: { target: UserRow; onPatch: (id: string, payload: UpdateUserDto, msg: string) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [newPwd, setNewPwd] = useState("");
   const [busy, setBusy] = useState(false);
@@ -380,7 +373,7 @@ function ResetPasswordDialog({ target, onPatch }: { target: UserRow; onPatch: (i
   );
 }
 
-function EditStudentDialog({ open, onClose, user: u, onPatch }: { open: boolean; onClose: () => void; user: UserRow; onPatch: (id: string, payload: Record<string, unknown>, msg: string) => Promise<void> }) {
+function EditStudentDialog({ open, onClose, user: u, onPatch }: { open: boolean; onClose: () => void; user: UserRow; onPatch: (id: string, payload: UpdateUserDto, msg: string) => Promise<void> }) {
   const [form, setForm] = useState({ name: u.name, department: u.department ?? "", phone: u.phone ?? "", matricNo: u.matricNo ?? "" });
   const [busy, setBusy] = useState(false);
 
