@@ -1,0 +1,12 @@
+**/node_modules
+**/.git
+**/dist
+**/.output
+**/.turbo
+**/.tanstack
+docs/evidence/*.png
+*.pdf
+**/.env
+**/.env.*
+!**/.env.example
+*.tsbuildinfo

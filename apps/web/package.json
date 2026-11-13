@@ -1,0 +1,50 @@
+{
+  "name": "@mivacampus/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "start": "vite preview",
+    "lint": "oxlint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.2.0",
+    "@heroicons/react": "^2.2.0",
+    "@mivacampus/contracts": "workspace:*",
+    "@tanstack/react-query": "^5.82.0",
+    "@tanstack/react-router": "^1.120.5",
+    "@tanstack/react-start": "^1.120.5",
+    "axios": "^1.10.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.4",
+    "sonner": "^2.0.6",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.0.2",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@tanstack/router-plugin": "^1.120.5",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.9",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.3.0",
+    "jsdom": "^31.0.0",
+    "oxlint": "^1.93.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vite": "^8.3.8",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^5.1.0"
+  }
+}

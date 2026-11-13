@@ -13,10 +13,6 @@ node_modules
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
-
 # production
 /build
 
@@ -39,17 +35,32 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 local-*
 .claude
 .z-ai-config
 *.log
 dev.log
 dev.out.log
-test
+/test
 prompt
 
 server.log
+*.pdf
+*.db
+*.db.bak*
+.turbo/
+dist/
+.output/
+
+# generated code
+apps/api/src/generated
+apps/web/.tanstack
+
+# docs (not committed)
+docs/
+*.md
+!README.md
+
 # Skills directory
 /skills/
 !.env.example

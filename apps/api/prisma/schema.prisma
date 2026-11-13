@@ -1,0 +1,302 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  isActive      Boolean   @default(true)
+  department    String?
+  phone         String?
+  matricNo      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  memberships   Member[]
+  invitations   Invitation[]
+  notifications Notification[] @relation("PlatformNotifications")
+  auditLogs     AuditLog[]     @relation("PlatformAuditActor")
+
+  @@map("user")
+}
+
+model Session {
+  id                   String   @id @default(cuid())
+  expiresAt            DateTime
+  token                String   @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  ipAddress            String?
+  userAgent            String?
+  userId               String
+  activeOrganizationId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Organization {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  code           String   @unique
+  logo           String?
+  metadata       String?
+  nextRequestSeq Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  memberships  Member[]
+  invitations  Invitation[]
+  notifications Notification[]
+  categories   Category[]
+  requests     ServiceRequest[]
+  auditLogs    AuditLog[]
+
+  @@map("organization")
+}
+
+model Member {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String   @default("STUDENT")
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requests     ServiceRequest[] @relation("RequestCreator")
+  officerAssignments Assignment[] @relation("OfficerAssignments")
+  assigned     Assignment[]     @relation("AssignedBy")
+  statusLogs   StatusLog[]      @relation("StatusLogActor")
+  comments     Comment[]        @relation("CommentAuthor")
+  notifications Notification[] @relation("NotificationRecipient")
+  auditLogs    AuditLog[]       @relation("AuditActor")
+  attachments  Attachment[]     @relation("AttachmentUploader")
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("member")
+}
+
+model Invitation {
+  id             String    @id @default(cuid())
+  organizationId String
+  email          String
+  role           String    @default("STUDENT")
+  status         String    @default("pending")
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  inviterId      String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter      User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([inviterId])
+  @@map("invitation")
+}
+
+model Category {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  icon           String   @default("Wrench")
+  organizationId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requests     ServiceRequest[]
+
+  @@unique([organizationId, name])
+  @@map("category")
+}
+
+model ServiceRequest {
+  id             String   @id @default(cuid())
+  reference      String
+  title          String
+  description    String
+  location       String
+  priority       String   @default("MEDIUM")
+  status         String   @default("OPEN")
+  categoryId     String
+  creatorId      String
+  organizationId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  category     Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  creator      Member        @relation("RequestCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attachments  Attachment[]
+  assignments  Assignment[]
+  statusLogs   StatusLog[]
+  comments     Comment[]
+
+  @@unique([organizationId, reference])
+  @@index([organizationId])
+  @@map("service_request")
+}
+
+model Assignment {
+  id           String    @id @default(cuid())
+  requestId    String
+  officerId    String
+  assignedById String
+  note         String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  releasedAt   DateTime?
+
+  request        ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  officer        Member         @relation("OfficerAssignments", fields: [officerId], references: [id], onDelete: Cascade)
+  assignedByUser Member         @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([officerId])
+  @@map("assignment")
+}
+
+model StatusLog {
+  id         String   @id @default(cuid())
+  requestId  String
+  memberId   String
+  fromStatus String?
+  toStatus   String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  member  Member         @relation("StatusLogActor", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([memberId])
+  @@map("status_log")
+}
+
+model Attachment {
+  id              String    @id @default(cuid())
+  requestId       String
+  uploadedById    String?
+  key             String    @unique
+  fileName        String
+  mimeType        String
+  sizeBytes       Int?
+  status          String    @default("PENDING")
+  uploadExpiresAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  request    ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  uploadedBy Member?        @relation("AttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([uploadedById])
+  @@map("attachment")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  requestId String
+  memberId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  member  Member         @relation("CommentAuthor", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([memberId])
+  @@map("comment")
+}
+
+model Notification {
+  id             String   @id @default(cuid())
+  scope          String   @default("ORGANIZATION")
+  title          String
+  message        String
+  type           String   @default("INFO")
+  requestId      String?
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  organizationId String?
+  userId         String?
+  memberId       String?
+
+  user         User?         @relation("PlatformNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  member       Member?       @relation("NotificationRecipient", fields: [memberId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([memberId, isRead])
+  @@index([organizationId])
+  @@map("notification")
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  scope          String   @default("ORGANIZATION")
+  userId         String?
+  memberId       String?
+  action         String
+  entityType     String
+  entityId       String?
+  details        String?
+  createdAt      DateTime @default(now())
+  organizationId String?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  user         User?         @relation("PlatformAuditActor", fields: [userId], references: [id], onDelete: SetNull)
+  member       Member?       @relation("AuditActor", fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([organizationId])
+  @@index([memberId])
+  @@map("audit_log")
+}
