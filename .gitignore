@@ -60,3 +60,7 @@ apps/web/.tanstack
 docs/
 *.md
 !README.md
+
+# Skills directory
+/skills/
+!.env.example
