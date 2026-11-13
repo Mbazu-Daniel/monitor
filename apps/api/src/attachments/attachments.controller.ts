@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, HttpCode, Param, Post } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.decorator.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { AttachmentsService } from "./attachments.service.ts";
 import { CreateAttachmentUploadDto } from "./attachments.dto.ts";
 

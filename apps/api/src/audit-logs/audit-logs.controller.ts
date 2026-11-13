@@ -3,7 +3,7 @@ import { RequirePermission } from "../common/decorators/permissions.decorator.ts
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator.ts";
 import { AuditLogsService } from "./audit-logs.service.ts";
 import { listQuerySchema, type ListQuery } from "../common/dto/list-query.dto.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 
 @RequirePermission("audit", "read")
 @Controller("audit-logs")

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BadRequestException } from "@nestjs/common";
-import { TenantScope, scopedOrganizationId } from "../src/common/utils/tenant-scope.ts";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { TenantScope, scopedOrganizationId } from "../src/common/tenancy/tenant-scope.ts";
 
 const tenant = { organizationId: "org-1", role: "OFFICER" as const, memberId: "member-1" };
 

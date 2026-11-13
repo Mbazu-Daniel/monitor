@@ -1,4 +1,4 @@
-import type { Prisma } from "../../generated/prisma/client.ts";
+import type { Prisma } from "../generated/prisma/client.ts";
 
 export const creatorSelect = { select: { id: true, name: true, email: true, department: true, matricNo: true } } as const;
 export const officerSelect = { select: { id: true, name: true, email: true, phone: true, department: true } } as const;

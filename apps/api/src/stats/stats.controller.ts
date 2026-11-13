@@ -1,7 +1,7 @@
 import { Controller, Get } from "@nestjs/common";
 import { RequirePermission } from "../common/decorators/permissions.decorator.ts";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { StatsService } from "./stats.service.ts";
 
 @Controller("stats")

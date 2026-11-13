@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toActor, toLogActor, creatorSelect, officerSelect, assignedBySelect } from "../src/common/utils/actor.ts";
+import { toActor, toLogActor, creatorSelect, officerSelect, assignedBySelect } from "../src/common/actor.ts";
 
 describe("toActor", () => {
   const member = { role: "OFFICER", user: { id: "user-officer", name: "Ada", email: "ada@example.com" } };

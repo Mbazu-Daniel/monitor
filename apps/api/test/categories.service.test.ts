@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import type { PrismaClient } from "../src/generated/prisma/client.ts";
 import { CategoriesService } from "../src/categories/categories.service.ts";
-import { AuditSink } from "../src/common/utils/audit.ts";
+import { AuditSink } from "../src/common/audit/audit.ts";
 
 const tenant = { organizationId: "org-1", role: "ADMIN" as const, memberId: "member-admin" };
 const actor = { id: "user-1", name: "Admin Ann" };

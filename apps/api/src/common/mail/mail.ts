@@ -1,4 +1,4 @@
-import { getConfig } from "../config.ts";
+import { getConfig } from "../config/env.ts";
 import { logger } from "../logger.ts";
 import type { MailMessage } from "./types.ts";
 

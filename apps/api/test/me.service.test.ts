@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "../src/generated/prisma/client.ts";
 import { MeService } from "../src/me/me.service.ts";
-import { AuditSink } from "../src/common/utils/audit.ts";
+import { AuditSink } from "../src/common/audit/audit.ts";
 
 const tenant = { organizationId: "org-1", role: "ADMIN" as const, memberId: "member-1" };
 const user = {

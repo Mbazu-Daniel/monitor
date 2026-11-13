@@ -2,10 +2,10 @@ import { ConflictException, Inject, Injectable, NotFoundException } from "@nestj
 import { auth } from "../common/config/better-auth.config.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
 import type { PrismaClient } from "../generated/prisma/client.ts";
-import { AuditSink } from "../common/utils/audit.ts";
-import { nextStaffNo } from "../common/utils/staff-no.ts";
-import { slugify, uniqueSlug } from "../common/utils/slug.ts";
-import { uniqueCampusCode } from "../common/utils/campus-code.ts";
+import { AuditSink } from "../common/audit/audit.ts";
+import { nextStaffNo } from "../common/tenancy/staff-no.ts";
+import { slugify, uniqueSlug } from "../common/tenancy/slug.ts";
+import { uniqueCampusCode } from "../common/tenancy/campus-code.ts";
 import type { CreateOrganizationDto, JoinOrganizationDto } from "./organizations.dto.ts";
 
 @Injectable()

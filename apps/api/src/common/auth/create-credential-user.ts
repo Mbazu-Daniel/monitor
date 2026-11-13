@@ -1,5 +1,5 @@
-import { prisma } from "./prisma.ts";
-import { hashPassword } from "./password.ts";
+import { prisma } from "../prisma.ts";
+import { hashPassword } from "../auth/password.ts";
 
 
 export async function createCredentialUser(input: {

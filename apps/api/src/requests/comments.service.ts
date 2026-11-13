@@ -4,10 +4,10 @@ import {
 } from "@nestjs/common";
 import type { PrismaClient } from "../generated/prisma/client.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
-import { NotificationsService } from "../notifications/notifications.service.ts";
-import { TenantScope } from "../common/utils/tenant-scope.ts";
+import { NotificationAnnouncer } from "../notifications/notification-announcer.ts";
+import { TenantScope } from "../common/tenancy/tenant-scope.ts";
 import type { CommentDto } from "@mivacampus/contracts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { RealtimeService } from "../realtime/realtime.service.ts";
 import { loadRequestForAction, assertCanView } from "./request-access.ts";
 import { memberUserId } from "./request-shared.ts";
@@ -17,7 +17,7 @@ export class CommentsService {
   constructor(
     @Inject(PRISMA) private readonly db: PrismaClient,
     private readonly realtime: RealtimeService,
-    private readonly notifications: NotificationsService,
+    private readonly notifications: NotificationAnnouncer,
   ) {}
 
   async createComment(user: { id: string; name: string }, id: string, dto: CommentDto, tenant: TenantContext | undefined) {
