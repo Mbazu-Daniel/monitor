@@ -4,6 +4,7 @@ import { z } from "zod";
 const schema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().max(65535).default(8089),
+  TRUST_PROXY: z.enum(["true", "false"]).default(process.env.NODE_ENV === "production" ? "true" : "false"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
   BETTER_AUTH_URL: z.url().default("http://localhost:8089"),

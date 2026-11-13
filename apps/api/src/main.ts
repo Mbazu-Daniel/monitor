@@ -15,7 +15,11 @@ async function bootstrap() {
   const nestLogger = new PinoNestLogger(logger);
   Logger.overrideLogger(nestLogger);
 
-  const app = await NestFactory.create<NestNodeApplication>(AppModule, new NodeAdapter(), { bodyParser: false, bufferLogs: true });
+  const app = await NestFactory.create<NestNodeApplication>(
+    AppModule,
+    new NodeAdapter({ trustProxy: getConfig().TRUST_PROXY === "true" }),
+    { bodyParser: false, bufferLogs: true },
+  );
   app.useLogger(nestLogger);
   app.flushLogs();
   app.enableShutdownHooks();
