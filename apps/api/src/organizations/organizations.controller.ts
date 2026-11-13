@@ -30,7 +30,7 @@ export class OrganizationsController {
     @Body({ schema: CreateOrganizationDto }) dto: CreateOrganizationDto,
     @Req() req: Request,
   ) {
-    return this.orgs.create(user.id, dto, req.headers as Record<string, string>);
+    return this.orgs.create(user.id, dto, req.headers.cookie);
   }
 
   

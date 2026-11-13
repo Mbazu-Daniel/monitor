@@ -25,7 +25,7 @@ export class RealtimeService {
 
   streamFor(organizationId: string | null): Observable<MessageEvent> {
     return this.bus.pipe(
-      filter((event) => event.organizationId === (organizationId ?? null)),
+      filter((event) => event.organizationId === organizationId),
       map((event) => new MessageEvent("message", { data: event })),
     );
   }

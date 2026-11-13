@@ -3,14 +3,15 @@ import type { Prisma, PrismaClient } from "../generated/prisma/client.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
 import { parsePagination } from "../common/utils/pagination.ts";
 import { toLogActor } from "../common/utils/actor.ts";
+import type { ListQuery } from "../common/dto/list-query.dto.ts";
 
 @Injectable()
 export class AuditLogsService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient) {}
-  async list(query: Record<string, unknown>, organizationId: string | null) {
+  async list(query: ListQuery, organizationId: string | null) {
     const { page, pageSize, skip, take } = parsePagination(query, 10);
-    const search = typeof query.search === "string" ? query.search.trim() : undefined;
-    const action = typeof query.action === "string" ? query.action : undefined;
+    const search = query.search;
+    const action = query.action;
 
     const and: Prisma.AuditLogWhereInput[] = [{ organizationId }];
     if (search) {

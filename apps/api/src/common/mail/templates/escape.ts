@@ -7,7 +7,7 @@ const ESCAPES: Record<string, string> = {
 };
 
 export function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ESCAPES[char] ?? char);
+  return value.replace(/[&<>"']/g, (char) => ESCAPES[char]);
 }
 
 export function singleLine(value: string): string {

@@ -11,7 +11,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { BadRequestException, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 
-const UPLOAD_URL_TTL_SECONDS = 900;
+export const UPLOAD_URL_TTL_SECONDS = 900;
 const DOWNLOAD_URL_TTL_SECONDS = 3600;
 
 function readStorageConfig(env: NodeJS.ProcessEnv = process.env) {
@@ -49,33 +49,38 @@ class ObjectStorageNotConfigured extends BadRequestException {
 @Injectable()
 export class ObjectStorage implements OnModuleInit {
   private readonly logger = new Logger(ObjectStorage.name);
-  private readonly config = readStorageConfig();
-  private readonly bucket = this.config?.bucket ?? "";
-  private readonly client = this.config
-    ? new S3Client({
-        region: this.config.region,
-        endpoint: this.config.endpoint,
-        forcePathStyle: this.config.forcePathStyle,
+  private readonly storage = this.readStorage();
+
+  private readStorage() {
+    const config = readStorageConfig();
+    if (!config) return null;
+    return {
+      bucket: config.bucket,
+      client: new S3Client({
+        region: config.region,
+        endpoint: config.endpoint,
+        forcePathStyle: config.forcePathStyle,
         requestChecksumCalculation: "WHEN_REQUIRED",
         responseChecksumValidation: "WHEN_REQUIRED",
         credentials: {
-          accessKeyId: this.config.accessKeyId,
-          secretAccessKey: this.config.secretAccessKey,
+          accessKeyId: config.accessKeyId,
+          secretAccessKey: config.secretAccessKey,
         },
-      })
-    : null;
+      }),
+    };
+  }
 
   async onModuleInit(): Promise<void> {
-    if (!this.client) {
+    if (!this.storage) {
       this.logger.warn("R2_* not configured. Attachment uploads are disabled until a bucket is reachable");
       return;
     }
 
     try {
-      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      await this.storage.client.send(new HeadBucketCommand({ Bucket: this.storage.bucket }));
     } catch (err) {
       if ((err as { name?: string; $metadata?: { httpStatusCode?: number } }).name === "NotFound") {
-        await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+        await this.storage.client.send(new CreateBucketCommand({ Bucket: this.storage.bucket }));
       } else {
         this.logger.warn(`Object storage check failed (${(err as Error).message}). Uploads will fail until storage is reachable`);
       }
@@ -83,20 +88,12 @@ export class ObjectStorage implements OnModuleInit {
   }
 
   isConfigured(): boolean {
-    return this.client !== null;
+    return this.storage !== null;
   }
 
-  getUploadUrlTtlSeconds(): number {
-    return UPLOAD_URL_TTL_SECONDS;
-  }
-
-  async fileUrl(key: string): Promise<string> {
-    return this.presignDownloadUrl(key);
-  }
-
-  private requireClient(): S3Client {
-    if (!this.client) throw new ObjectStorageNotConfigured();
-    return this.client;
+  private requireStorage() {
+    if (!this.storage) throw new ObjectStorageNotConfigured();
+    return this.storage;
   }
 
   buildAttachmentKey(requestId: string, fileName: string): string {
@@ -105,11 +102,11 @@ export class ObjectStorage implements OnModuleInit {
   }
 
   async presignUploadUrl(key: string, mimeType: string, sizeBytes?: number): Promise<string> {
-    const client = this.requireClient();
+    const { client, bucket } = this.requireStorage();
     return getSignedUrl(
       client,
       new PutObjectCommand({
-        Bucket: this.bucket,
+        Bucket: bucket,
         Key: key,
         ContentType: mimeType,
         ...(sizeBytes === undefined ? {} : { ContentLength: sizeBytes }),
@@ -119,18 +116,18 @@ export class ObjectStorage implements OnModuleInit {
   }
 
   async presignDownloadUrl(key: string): Promise<string> {
-    const client = this.requireClient();
+    const { client, bucket } = this.requireStorage();
     return getSignedUrl(
       client,
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      new GetObjectCommand({ Bucket: bucket, Key: key }),
       { expiresIn: DOWNLOAD_URL_TTL_SECONDS },
     );
   }
 
   async headObject(key: string): Promise<StoredObjectMeta | null> {
-    const client = this.requireClient();
+    const { client, bucket } = this.requireStorage();
     try {
-      const res = await client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      const res = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
       return {
         sizeBytes: res.ContentLength ?? 0,
         contentType: res.ContentType ?? "application/octet-stream",
@@ -143,7 +140,7 @@ export class ObjectStorage implements OnModuleInit {
   }
 
   async deleteObject(key: string): Promise<void> {
-    const client = this.requireClient();
-    await client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    const { client, bucket } = this.requireStorage();
+    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
   }
 }

@@ -4,11 +4,12 @@ import { PRISMA } from "../common/constants/prisma-token.ts";
 import { csvEscape } from "../common/utils/csv.ts";
 import type { TenantContext } from "../common/guards/session.guard.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
+import type { ListQuery } from "../common/dto/list-query.dto.ts";
 
 @Injectable()
 export class ExportService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient) {}
-  async requestsCsv(query: Record<string, unknown>, user: { id: string }, tenant: TenantContext | undefined) {
+  async requestsCsv(query: ListQuery, tenant: TenantContext | undefined) {
     const scope = TenantScope.of(tenant);
     const where: Prisma.ServiceRequestWhereInput = { ...scope.where() };
 
@@ -16,13 +17,10 @@ export class ExportService {
       where.assignments = { some: { officerId: scope.memberIdOrNoMatch(), isActive: true } };
     }
 
-    const status = typeof query.status === "string" ? query.status : undefined;
-    const priority = typeof query.priority === "string" ? query.priority : undefined;
-    const categoryId = typeof query.categoryId === "string" ? query.categoryId : undefined;
     const and: Prisma.ServiceRequestWhereInput[] = [];
-    if (status) and.push({ status });
-    if (priority) and.push({ priority });
-    if (categoryId) and.push({ categoryId });
+    if (query.status) and.push({ status: query.status });
+    if (query.priority) and.push({ priority: query.priority });
+    if (query.categoryId) and.push({ categoryId: query.categoryId });
     if (and.length) where.AND = and;
 
     const requests = await this.db.serviceRequest.findMany({

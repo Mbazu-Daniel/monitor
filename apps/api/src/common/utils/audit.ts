@@ -19,18 +19,7 @@ export interface AuditInput {
   scope?: AuditScope;
 }
 
-type AuditRow = {
-  scope: AuditScope;
-  userId: string | null;
-  memberId?: string;
-  action: AuditAction;
-  entityType: AuditEntity;
-  entityId?: string;
-  details?: string;
-  organizationId?: string;
-};
-
-function toRow({ userId, memberId, action, entityType, entityId, details, organizationId, scope }: AuditInput): AuditRow | null {
+function toRow({ userId, memberId, action, entityType, entityId, details, organizationId, scope }: AuditInput): Prisma.AuditLogUncheckedCreateInput | null {
   const resolvedScope: AuditScope = scope ?? (organizationId ? "ORGANIZATION" : "PLATFORM");
   if (resolvedScope === "ORGANIZATION" && !organizationId) {
     logger.error({ action, entityId }, "[AUDIT_DROPPED] organization-scope audit entry is missing organizationId");
@@ -39,16 +28,16 @@ function toRow({ userId, memberId, action, entityType, entityId, details, organi
   return {
     scope: resolvedScope,
     userId,
-    memberId: memberId ?? undefined,
+    memberId: memberId ?? null,
     action,
     entityType,
-    entityId: entityId ?? undefined,
+    entityId: entityId ?? null,
     details,
-    organizationId: organizationId ?? undefined,
+    organizationId: organizationId ?? null,
   };
 }
 
-async function persistQuietly(input: AuditInput): Promise<void> {
+export async function persistQuietly(input: AuditInput): Promise<void> {
   const data = toRow(input);
   if (!data) return;
   try {
@@ -69,8 +58,4 @@ export class AuditSink {
   async platform(input: AuditInput): Promise<void> {
     return persistQuietly(input);
   }
-}
-
-export async function auditPlatform(input: AuditInput): Promise<void> {
-  return persistQuietly(input);
 }
