@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { useCampusEvents } from "@/hooks/use-campus-events";

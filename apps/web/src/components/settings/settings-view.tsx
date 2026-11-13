@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { api, ApiError } from "@/lib/client";

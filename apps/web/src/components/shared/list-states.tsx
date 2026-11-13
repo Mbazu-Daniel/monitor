@@ -1,5 +1,3 @@
-"use client";
-
 import type { ComponentType } from "react";
 import { ChevronLeft, ChevronRight } from "@/components/icons";
 import { EmptyState } from "@/components/shared/empty-state";

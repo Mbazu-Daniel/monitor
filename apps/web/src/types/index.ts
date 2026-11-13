@@ -1,5 +1,4 @@
 
-
 import type { AppRole, Priority, RequestStatus } from "@mivacampus/contracts";
 
 export type UserRole = AppRole;

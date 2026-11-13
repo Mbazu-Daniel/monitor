@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { download } from "@/lib/client";

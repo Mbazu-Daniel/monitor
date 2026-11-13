@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Outlet, Navigate, useNavigate } from "@tanstack/react-router";
 import { useAppStore } from "@/stores/app-store";

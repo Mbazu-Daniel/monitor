@@ -1,5 +1,3 @@
-"use client";
-
 import { useParams, Navigate } from "@tanstack/react-router";
 import { useAppStore } from "@/stores/app-store";
 import type { UserRole } from "@/types";

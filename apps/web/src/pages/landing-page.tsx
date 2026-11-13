@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Wrench, Zap, Building2, CheckIcon, ClipboardList, History, Clock } from "@/components/icons";

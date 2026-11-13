@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { api } from "@/lib/client";
@@ -24,6 +22,5 @@ export function useEnsureSession() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

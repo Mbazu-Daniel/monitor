@@ -1,5 +1,3 @@
-"use client";
-
 import { useRouter } from "@tanstack/react-router";
 import { useAppStore } from "@/stores/app-store";
 import type { ViewKey } from "@/stores/app-store";

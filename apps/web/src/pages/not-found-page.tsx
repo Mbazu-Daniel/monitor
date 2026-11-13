@@ -1,5 +1,3 @@
-"use client";
-
 import { Link, useLocation } from "@tanstack/react-router";
 import { ArrowRight, Wrench } from "@/components/icons";
 import { Button } from "@/components/ui/button";

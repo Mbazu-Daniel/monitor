@@ -2,8 +2,6 @@ import axios from "axios";
 
 const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
 
-// Absolute API origin when VITE_API_URL is set at build time; otherwise the
-// relative path through the local proxy (vite dev / vite preview)
 export function apiUrl(path: string): string {
   return apiBase ? `${apiBase}${path}` : path;
 }
@@ -48,8 +46,6 @@ export function qs(params: Record<string, string | number | undefined | null>) {
 }
 
 export async function download(path: string) {
-  // Verified sink: the destination is the build-time API origin (apiUrl) or the same-origin
-  // dev proxy, never attacker-controlled input.
   const response = await axios.get<Blob>(apiUrl(path), { responseType: "blob", withCredentials: true });
   return response.data;
 }

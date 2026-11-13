@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { RequestsListView } from "@/components/requests/requests-list";

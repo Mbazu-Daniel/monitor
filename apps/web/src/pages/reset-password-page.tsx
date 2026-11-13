@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Loader2, CheckCircle2 } from "@/components/icons";

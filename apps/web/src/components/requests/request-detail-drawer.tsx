@@ -1,5 +1,3 @@
-"use client";
-
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAppStore } from "@/stores/app-store";
 import { useNavigate, useRouterState } from "@tanstack/react-router";

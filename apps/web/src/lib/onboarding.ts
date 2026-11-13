@@ -1,4 +1,3 @@
-
 import { passwordMeetsPolicy } from "@mivacampus/contracts";
 
 export type OnboardingForm = {

@@ -1,5 +1,3 @@
-"use client";
-
 import { Loader2 } from "@/components/icons";
 
 export function Splash() {
