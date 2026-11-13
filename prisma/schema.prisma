@@ -3,11 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ------------------ Enums (string unions for SQLite clarity) ------------------
+// ------------------ Enums (string unions) ------------------
 // Role: STUDENT | STAFF | OFFICER | ADMIN
 // Priority: LOW | MEDIUM | HIGH | URGENT
 // Status: OPEN | ASSIGNED | IN_PROGRESS | ON_HOLD | RESOLVED | CLOSED | REJECTED
