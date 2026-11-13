@@ -16,6 +16,7 @@ import { useCopied } from "@/hooks/use-copied";
 import type { SessionUser } from "@/types";
 
 const STEPS = ["Your campus", "Admin account", "Starting categories", "Review & create"] as const;
+const SIGNED_IN_STEPS = ["Your campus", "Starting categories", "Review & create"] as const;
 
 const PRESETS = [
   { name: "Electrical Fault", description: "Power outages, faulty sockets, lighting, wiring issues.", icon: Zap, iconName: "Zap" },
@@ -44,10 +45,10 @@ function RailStep({ n, label, state }: { n: number; label: string; state: "done"
   );
 }
 
-function StepsRail({ step, done }: { step: number; done: boolean }) {
+function StepsRail({ step, done, steps }: { step: number; done: boolean; steps: readonly string[] }) {
   return (
     <ol className="mt-8 grid gap-2 sm:grid-cols-2 lg:mt-12 lg:grid-cols-1 lg:gap-4">
-      {STEPS.map((label, i) => {
+      {steps.map((label, i) => {
         const n = i + 1;
         const state = done || n < step ? "done" : n === step ? "current" : "upcoming";
         return <RailStep key={label} n={n} label={label} state={state} />;
@@ -129,7 +130,7 @@ function DoneScreen({ done, copied, onCopy, onContinue }: {
   );
 }
 
-function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, onCodeChange }: {
+function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, onCodeChange, signedInName }: {
   form: OnboardingForm;
   subdomain: string;
   code: string;
@@ -137,11 +138,17 @@ function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, o
   onSet: (k: keyof OnboardingForm, v: string) => void;
   onSubdomainChange: (v: string) => void;
   onCodeChange: (v: string) => void;
+  signedInName?: string | null;
 }) {
   return (
     <div>
       <h2 className="text-xl font-semibold">Name your campus</h2>
       <p className="mt-1 text-sm text-muted-foreground">This is the university or campus whose faults you'll be tracking.</p>
+      {signedInName ? (
+        <p className="mt-3 rounded-xl border border-border bg-secondary/50 p-3 text-[13px] leading-snug text-muted-foreground">
+          You're signed in as <span className="font-medium text-foreground">{signedInName}</span> — the campus is created under this account and you become its first administrator. Invited to an existing campus instead? Open the link from your email.
+        </p>
+      ) : null}
       <div className="mt-5 space-y-1.5">
         <Label htmlFor="ob-org">Campus or university name</Label>
         <Input id="ob-org" placeholder="e.g. Example University" value={form.organizationName} onChange={(e) => onSet("organizationName", e.target.value)} autoFocus />
@@ -281,11 +288,12 @@ function CategoriesStep({ selected, customs, customName, errors, onTogglePreset,
   );
 }
 
-function ReviewStep({ form, subdomain, code, categories }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[] }) {
+function ReviewStep({ form, subdomain, code, categories, administrator }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[]; administrator: { name: string; email: string } | null }) {
+  const admin = administrator ?? { name: form.adminName.trim(), email: form.adminEmail.trim() };
   return (
     <div>
       <h2 className="text-xl font-semibold">Review & create</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Everything lands together: one campus, one admin, your chosen categories.</p>
+      <p className="mt-1 text-sm text-muted-foreground">{administrator ? "Everything lands together: one campus, you as its first administrator, your chosen categories." : "Everything lands together: one campus, one admin, your chosen categories."}</p>
       <dl className="mt-5 divide-y divide-border rounded-2xl border border-border">
         <div className="flex items-start justify-between gap-4 p-4">
           <dt className="text-sm font-medium text-muted-foreground">Campus</dt>
@@ -301,7 +309,7 @@ function ReviewStep({ form, subdomain, code, categories }: { form: OnboardingFor
         </div>
         <div className="flex items-start justify-between gap-4 p-4">
           <dt className="text-sm font-medium text-muted-foreground">Administrator</dt>
-          <dd className="text-right text-sm font-semibold">{form.adminName.trim()}<br /><span className="text-xs font-normal text-muted-foreground">{form.adminEmail.trim()}</span></dd>
+          <dd className="text-right text-sm font-semibold">{admin.name}<br /><span className="text-xs font-normal text-muted-foreground">{admin.email}</span></dd>
         </div>
         <div className="p-4">
           <dt className="text-sm font-medium text-muted-foreground">Starting categories ({categories.length})</dt>
@@ -316,7 +324,7 @@ function ReviewStep({ form, subdomain, code, categories }: { form: OnboardingFor
   );
 }
 
-function BrandRail({ step, done }: { step: number; done: boolean }) {
+function BrandRail({ step, done, steps }: { step: number; done: boolean; steps: readonly string[] }) {
   return (
     <div className="relative flex flex-col justify-between overflow-hidden bg-[#2f2f30] px-6 py-8 text-[#fdfaf6] lg:w-[42%] lg:px-12 lg:py-14">
       <div className="relative">
@@ -329,16 +337,16 @@ function BrandRail({ step, done }: { step: number; done: boolean }) {
         </div>
 
         <div className="mt-8 lg:mt-14">
-          <p className="tabular-nums text-xs font-bold text-[#ffb59e]">Step {Math.min(step, 4)} of 4</p>
+          <p className="tabular-nums text-xs font-bold text-[#ffb59e]">Step {Math.min(step, steps.length)} of {steps.length}</p>
           <h1 className="mt-3 max-w-md text-[32px] font-semibold leading-[1.02] tracking-[-0.03em] text-[#fdfaf6]">
             Set up your campus in a few minutes.
           </h1>
           <p className="mt-3 max-w-md text-sm leading-relaxed text-[#fdfaf6]/70">
-            Create your university's workspace, its first administrator account and the categories staff will report against. Then share your campus code with everyone.
+            Create your university's workspace and the categories staff will report against. Then share your campus code with everyone.
           </p>
         </div>
 
-        <StepsRail step={step} done={done} />
+        <StepsRail step={step} done={done} steps={steps} />
       </div>
 
       <div className="relative mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[#fdfaf6]/65 lg:mt-10">
@@ -350,9 +358,10 @@ function BrandRail({ step, done }: { step: number; done: boolean }) {
   );
 }
 
-function FormCard({ serverError, step, stepNode, loading, onContinue, onBack, onCreate, onHome }: {
+function FormCard({ serverError, step, totalSteps, stepNode, loading, onContinue, onBack, onCreate, onHome }: {
   serverError: string | null;
   step: number;
+  totalSteps: number;
   stepNode: React.ReactNode;
   loading: boolean;
   onContinue: () => void;
@@ -378,7 +387,7 @@ function FormCard({ serverError, step, stepNode, loading, onContinue, onBack, on
         ) : (
           <Button variant="ghost" onClick={onHome}><ArrowLeft className="mr-2 h-4 w-4" /> Home</Button>
         )}
-        {step < 4 ? (
+        {step < totalSteps ? (
           <Button onClick={onContinue}>Continue <ArrowRight className="ml-2 h-4 w-4" /></Button>
         ) : (
           <Button onClick={onCreate} disabled={loading}>
@@ -402,7 +411,7 @@ function SessionGate({ session, me, done, copied, onCopy, onAuthedContinue, onDo
   children: React.ReactNode;
 }) {
   if (session === "loading") return <LoadingScreen />;
-  if (session === "authed" && me) return <AuthedScreen me={me} onContinue={onAuthedContinue} onSignOut={onSignOut} />;
+  if (session === "authed" && me?.organizationSlug) return <AuthedScreen me={me} onContinue={onAuthedContinue} onSignOut={onSignOut} />;
   if (done) return <DoneScreen done={done} copied={copied} onCopy={onCopy} onContinue={onDoneContinue} />;
   return <>{children}</>;
 }
@@ -433,11 +442,13 @@ function useOnboardingSession() {
   return { session, me, setUser, setAuthChecked };
 }
 
-async function createCampus({ form, subdomain, code, categories }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[] }) {
-  await api("/api/auth/sign-up/email", {
-    method: "POST",
-    body: JSON.stringify({ name: form.adminName.trim(), email: form.adminEmail.trim(), password: form.adminPassword }),
-  });
+async function createCampus({ form, subdomain, code, categories, skipAdminSignup = false }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[]; skipAdminSignup?: boolean }) {
+  if (!skipAdminSignup) {
+    await api("/api/auth/sign-up/email", {
+      method: "POST",
+      body: JSON.stringify({ name: form.adminName.trim(), email: form.adminEmail.trim(), password: form.adminPassword }),
+    });
+  }
   return api<{ id: string; name: string; slug: string; code: string }>("/api/organizations", {
     method: "POST",
     body: JSON.stringify({
@@ -453,6 +464,9 @@ async function createCampus({ form, subdomain, code, categories }: { form: Onboa
 export function OnboardingPage() {
   const navigate = useNavigate();
   const { session, me, setUser, setAuthChecked } = useOnboardingSession();
+  const signedIn = session === "authed" && me && !me.organizationSlug ? me : null;
+  const steps = signedIn ? SIGNED_IN_STEPS : STEPS;
+  const totalSteps = steps.length;
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<OnboardingForm>({ organizationName: "", subdomain: "", code: "", adminName: "", adminEmail: "", adminPassword: "", adminDepartment: "" });
@@ -497,7 +511,7 @@ export function OnboardingPage() {
   }
 
   function validateStep(current: number): boolean {
-    const e = validateOnboardingStep(current, form, subdomain, code, categoryPayload.length);
+    const e = validateOnboardingStep(current, form, subdomain, code, categoryPayload.length, !!signedIn);
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -505,14 +519,14 @@ export function OnboardingPage() {
   function next() {
     setServerError(null);
     if (!validateStep(step)) return;
-    setStep((s) => Math.min(4, s + 1));
+    setStep((s) => Math.min(totalSteps, s + 1));
   }
 
   async function create() {
     setServerError(null);
     setLoading(true);
     try {
-      const res = await createCampus({ form, subdomain, code, categories: categoryPayload });
+      const res = await createCampus({ form, subdomain, code, categories: categoryPayload, skipAdminSignup: !!signedIn });
       const sessionUser = await api<{ user: SessionUser }>("/api/me");
       setUser(sessionUser.user);
       setAuthChecked(true);
@@ -534,30 +548,34 @@ export function OnboardingPage() {
 
   const onSubdomainChange = (v: string) => { setSubdomainTouched(true); set("subdomain", v.toLowerCase().replace(/[^a-z0-9-]/g, "")); };
   const onCodeChange = (v: string) => { setCodeTouched(true); set("code", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10)); };
+  const administrator = signedIn ? { name: signedIn.name, email: signedIn.email } : null;
+  const categoriesStep = (
+    <CategoriesStep
+      selected={selected}
+      customs={customs}
+      customName={customName}
+      errors={errors}
+      onTogglePreset={togglePreset}
+      onCustomNameChange={setCustomName}
+      onAddCustom={addCustom}
+      onRemoveCustom={(name) => setCustoms((prev) => prev.filter((n) => n !== name))}
+      selectedCount={categoryPayload.length}
+    />
+  );
   const stepNode =
     step === 1 ? (
-      <CampusStep form={form} subdomain={subdomain} code={code} errors={errors} onSet={set} onSubdomainChange={onSubdomainChange} onCodeChange={onCodeChange} />
+      <CampusStep form={form} subdomain={subdomain} code={code} errors={errors} onSet={set} onSubdomainChange={onSubdomainChange} onCodeChange={onCodeChange} signedInName={signedIn?.name ?? null} />
     ) : step === 2 ? (
-      <AdminStep form={form} errors={errors} showPwd={showPwd} onTogglePwd={() => setShowPwd((v) => !v)} onSet={set} />
+      signedIn ? categoriesStep : <AdminStep form={form} errors={errors} showPwd={showPwd} onTogglePwd={() => setShowPwd((v) => !v)} onSet={set} />
     ) : step === 3 ? (
-      <CategoriesStep
-        selected={selected}
-        customs={customs}
-        customName={customName}
-        errors={errors}
-        onTogglePreset={togglePreset}
-        onCustomNameChange={setCustomName}
-        onAddCustom={addCustom}
-        onRemoveCustom={(name) => setCustoms((prev) => prev.filter((n) => n !== name))}
-        selectedCount={categoryPayload.length}
-      />
+      signedIn ? <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} administrator={administrator} /> : categoriesStep
     ) : (
-      <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} />
+      <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} administrator={administrator} />
     );
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <BrandRail step={step} done={!!done} />
+      <BrandRail step={step} done={!!done} steps={steps} />
 
       <div className="flex flex-1 items-center justify-center bg-muted/40 px-4 py-10 sm:px-8">
         <div className="w-full max-w-lg">
@@ -574,6 +592,7 @@ export function OnboardingPage() {
             <FormCard
               serverError={serverError}
               step={step}
+              totalSteps={totalSteps}
               stepNode={stepNode}
               loading={loading}
               onContinue={next}

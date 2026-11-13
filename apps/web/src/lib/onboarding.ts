@@ -26,8 +26,9 @@ function validateAdminStep(form: OnboardingForm) {
   return e;
 }
 
-export function validateOnboardingStep(current: number, form: OnboardingForm, subdomain: string, code: string, categoryCount: number): Record<string, string> {
+export function validateOnboardingStep(current: number, form: OnboardingForm, subdomain: string, code: string, categoryCount: number, signedIn = false): Record<string, string> {
   if (current === 1) return validateCampusStep(form, subdomain, code);
+  if (signedIn) return categoryCount === 0 ? { categories: "Pick at least one starting category." } : {};
   if (current === 2) return validateAdminStep(form);
   if (current === 3) return categoryCount === 0 ? { categories: "Pick at least one starting category." } : {};
   return {};
