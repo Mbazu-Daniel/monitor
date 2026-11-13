@@ -1,7 +1,7 @@
 import { Controller, Get, Patch, Body, HttpCode } from "@nestjs/common";
 import { CurrentUser, CurrentTenant } from "../common/decorators/current-tenant.decorator.ts";
 import { MeService } from "./me.service.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { z } from "zod";
 
 const UpdateProfileDto = z.object({ name: z.string().trim().min(2).max(100).optional(), department: z.string().trim().max(120).optional(), phone: z.string().trim().max(30).optional() });

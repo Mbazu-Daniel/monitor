@@ -9,7 +9,7 @@ import { AuditSink } from "../common/utils/audit.ts";
 import { NotificationAnnouncer } from "../notifications/notification-announcer.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { canEdit, canDelete, type RequestStatus, type CreateRequestDto, type UpdateRequestDto } from "@mivacampus/contracts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { RealtimeService } from "../realtime/realtime.service.ts";
 import { AttachmentsService } from "../attachments/attachments.service.ts";
 import { loadRequestForAction } from "./request-access.ts";

@@ -18,7 +18,7 @@ import { StatusChangeService } from "./status-change.service.ts";
 import { CommentsService } from "./comments.service.ts";
 import { AssignDto, CommentDto, CreateRequestDto, StatusUpdateDto, UpdateRequestDto } from "./requests.dto.ts";
 import { listQuerySchema, type ListQuery } from "../common/dto/list-query.dto.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 
 @Controller("requests")
 export class RequestsController {

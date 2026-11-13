@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, HttpCode } from "@nestjs/common";
 import { RequirePermission } from "../common/decorators/permissions.decorator.ts";
 import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.decorator.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { UsersService } from "./users.service.ts";
 import { UserReportingService } from "./user-reporting.ts";
 import { CreateUserDto, UpdateUserDto } from "./users.dto.ts";

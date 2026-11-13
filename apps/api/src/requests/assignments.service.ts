@@ -11,7 +11,7 @@ import { NotificationAnnouncer } from "../notifications/notification-announcer.t
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { assignedByActor, officerActor, toActor } from "../common/utils/actor.ts";
 import type { AssignDto } from "@mivacampus/contracts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { RealtimeService } from "../realtime/realtime.service.ts";
 import { loadRequestForAction, scopedRequestLookup } from "./request-access.ts";
 import { memberUserId } from "./request-shared.ts";

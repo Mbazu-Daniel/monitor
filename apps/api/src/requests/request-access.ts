@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { canView } from "@mivacampus/contracts";
 

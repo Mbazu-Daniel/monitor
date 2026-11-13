@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from "@nestj
 import { PRISMA } from "../common/constants/prisma-token.ts";
 import type { PrismaClient } from "../generated/prisma/client.ts";
 import { AuditSink } from "../common/utils/audit.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import type { CategoryDto } from "./categories.dto.ts";
 
 @Injectable()

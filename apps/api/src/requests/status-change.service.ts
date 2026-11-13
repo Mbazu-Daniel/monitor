@@ -10,7 +10,7 @@ import { AuditSink } from "../common/utils/audit.ts";
 import { NotificationAnnouncer } from "../notifications/notification-announcer.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { permissionError, type RequestStatus, type StatusUpdateDto } from "@mivacampus/contracts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { RealtimeService } from "../realtime/realtime.service.ts";
 import { loadRequestForAction } from "./request-access.ts";
 import { memberUserId, statusLabel, statusAnnouncement } from "./request-shared.ts";

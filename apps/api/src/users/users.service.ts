@@ -11,7 +11,7 @@ import { nextStaffNo } from "../common/utils/staff-no.ts";
 import { hashPassword } from "../common/utils/password.ts";
 import { createCredentialUser, revokeSessions } from "../common/utils/create-credential-user.ts";
 import { AuditSink } from "../common/utils/audit.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import type { CreateUserDto, UpdateUserDto } from "./users.dto.ts";
 
 function assertStaffCanManageTarget(dto: UpdateUserDto, target: { memberships: { role: string }[] }) {

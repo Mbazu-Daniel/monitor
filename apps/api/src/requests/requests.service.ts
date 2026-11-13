@@ -9,7 +9,7 @@ import { AttachmentsService } from "../attachments/attachments.service.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { parsePagination } from "../common/utils/pagination.ts";
 import { toActor, creatorActor, officerActor, assignedByActor, logAuthorInclude } from "../common/utils/actor.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import type { ListQuery } from "../common/dto/list-query.dto.ts";
 import { loadRequestForAction, assertCanView, scopedRequestLookup } from "./request-access.ts";
 

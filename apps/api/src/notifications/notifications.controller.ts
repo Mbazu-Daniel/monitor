@@ -1,6 +1,6 @@
 import { Controller, Get, NotFoundException, Param, Post, Query, HttpCode } from "@nestjs/common";
 import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.decorator.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { NotificationInbox } from "./notification-inbox.ts";
 import { listQuerySchema, type ListQuery } from "../common/dto/list-query.dto.ts";
 

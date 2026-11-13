@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
-import { AuthGuard, PermissionsGuard } from "./common/guards/session.guard.ts";
+import { AuthGuard } from "./common/guards/auth.guard.ts";
+import { PermissionsGuard } from "./common/guards/permissions.guard.ts";
 import { AuthController } from "./auth/auth.controller.ts";
 import { HealthController } from "./health.controller.ts";
 import { MeModule } from "./me/me.module.ts";

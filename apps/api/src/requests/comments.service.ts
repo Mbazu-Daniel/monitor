@@ -7,7 +7,7 @@ import { PRISMA } from "../common/constants/prisma-token.ts";
 import { NotificationAnnouncer } from "../notifications/notification-announcer.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import type { CommentDto } from "@mivacampus/contracts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { RealtimeService } from "../realtime/realtime.service.ts";
 import { loadRequestForAction, assertCanView } from "./request-access.ts";
 import { memberUserId } from "./request-shared.ts";

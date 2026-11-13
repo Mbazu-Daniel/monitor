@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { PRISMA } from "../common/constants/prisma-token.ts";
 import type { PrismaClient } from "../generated/prisma/client.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { AuditSink } from "../common/utils/audit.ts";
 
 @Injectable()

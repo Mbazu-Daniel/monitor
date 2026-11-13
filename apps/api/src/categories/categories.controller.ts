@@ -3,7 +3,7 @@ import { RequirePermission } from "../common/decorators/permissions.decorator.ts
 import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.decorator.ts";
 import { CategoriesService } from "./categories.service.ts";
 import { CategoryDto } from "./categories.dto.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 
 @Controller("categories")
 export class CategoriesController {

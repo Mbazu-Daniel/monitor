@@ -8,7 +8,7 @@ import {
 import { PRISMA } from "../common/constants/prisma-token.ts";
 import type { PrismaClient } from "../generated/prisma/client.ts";
 import { MAX_IMAGE_MIME_TYPES, MAX_UPLOAD_BYTES } from "@mivacampus/contracts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { canAttach } from "@mivacampus/contracts";
 import { ObjectStorage, UPLOAD_URL_TTL_SECONDS } from "../common/utils/object-storage.ts";

@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "../generated/prisma/client.ts";
 import { TenantScope, scopedOrganizationId } from "../common/utils/tenant-scope.ts";
 import { averageResolutionHours } from "../common/utils/resolution-hours.ts";
 import { toLogActor } from "../common/utils/actor.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { PRIORITIES, STATUSES } from "@mivacampus/contracts";
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

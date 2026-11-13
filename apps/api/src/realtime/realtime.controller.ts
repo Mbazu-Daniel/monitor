@@ -3,7 +3,7 @@ import type { MessageEvent } from "@nestjs/common";
 import type { Observable } from "rxjs";
 import { CurrentTenant } from "../common/decorators/current-tenant.decorator.ts";
 import { RealtimeService } from "./realtime.service.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 
 @Controller("realtime")
 export class RealtimeController {

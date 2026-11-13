@@ -5,7 +5,7 @@ import { PRISMA } from "../common/constants/prisma-token.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { averageResolutionHours } from "../common/utils/resolution-hours.ts";
 import { requestIncludeForList, toActor } from "../common/utils/actor.ts";
-import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 
 
 type ListItem = Prisma.ServiceRequestGetPayload<{ include: typeof requestIncludeForList }>;

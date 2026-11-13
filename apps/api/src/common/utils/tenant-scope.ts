@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import type { TenantContext } from "../guards/session.guard.ts";
+import type { TenantContext } from "../guards/session.types.ts";
 
 const NO_ORGANIZATION = "__never__";
 const NO_MEMBER = "__none__";
