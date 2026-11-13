@@ -1,5 +1,3 @@
-"use client";
-
 import { createFileRoute } from "@tanstack/react-router";
 import { RequireRole } from "@/components/layout/require-role";
 import { CategoriesView } from "@/components/admin/admin-categories";

@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { useAppStore } from "@/stores/app-store";

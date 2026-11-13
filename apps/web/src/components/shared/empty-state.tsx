@@ -1,5 +1,3 @@
-"use client";
-
 import type { ComponentType, ReactNode } from "react";
 
 type Icon = ComponentType<{ className?: string }>;

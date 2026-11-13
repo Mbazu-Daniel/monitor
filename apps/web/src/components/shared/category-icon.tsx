@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Wrench, Zap, Droplets, Armchair, Wifi, Monitor, Building2, HardHat, SprayCan,
   DoorOpen, Paintbrush, Settings,

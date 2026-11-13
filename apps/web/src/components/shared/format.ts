@@ -1,5 +1,3 @@
-"use client";
-
 export function timeAgo(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const seconds = Math.floor((Date.now() - d.getTime()) / 1000);

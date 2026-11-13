@@ -18,7 +18,6 @@ export class ExportController {
     await this.auditSink.platform({ userId: user.id, memberId: tenant?.memberId ?? null, action: "DATA_EXPORTED", entityType: "REQUEST", entityId: null, details: `${user.name} exported ${count} request(s) to CSV`, organizationId: tenant?.organizationId ?? null });
     const date = new Date().toISOString().slice(0, 10);
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    // Verified sink: `date` is server-generated as strict YYYY-MM-DD; no CR/LF is possible.
     res.setHeader("Content-Disposition", `attachment; filename="mivacampus-requests-${date}.csv"`);
     return csv;
   }

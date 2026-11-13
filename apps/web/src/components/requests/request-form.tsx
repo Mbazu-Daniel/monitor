@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { useViewNav } from "@/lib/view-nav";
@@ -66,8 +64,6 @@ async function uploadAttachments(requestId: string, items: Picked[]): Promise<st
         method: "POST",
         body: JSON.stringify({ fileName: item.filename, mimeType: item.mimeType, sizeBytes: item.size }),
       });
-      // Verified sink: uploadUrl is a server-generated presigned URL for the app's own
-      // object storage, returned by our API — not attacker-controlled.
       const upload = await fetch(init.uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": item.mimeType },

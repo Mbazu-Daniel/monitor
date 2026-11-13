@@ -16,9 +16,6 @@ const TRUSTED_ORIGINS = getConfig().webOrigins;
 const isProduction = getConfig().NODE_ENV === "production";
 const WEB_URL = getConfig().WEB_URL.replace(/\/$/, "");
 
-
-
-
 export const auth = betterAuth({
   basePath: "/api/v1/auth",
   trustedOrigins: TRUSTED_ORIGINS,
@@ -26,7 +23,7 @@ export const auth = betterAuth({
   advanced: {
     database: {
       joins: true,
-      generateId: false, 
+      generateId: false,
     },
     ...(isProduction
       ? {

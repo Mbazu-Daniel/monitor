@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Eye, EyeOff, Lock } from "@/components/icons";
 import { Input } from "@/components/ui/input";

@@ -1,5 +1,3 @@
-"use client";
-
 export function AuthIllustration({ className }: { className?: string }) {
   return (
     <svg

@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { ArrowLeft, Wrench, Zap, Building2, GraduationCap } from "@/components/icons";
 import { LoginForm, CreateAccountForm, JoinCampusForm } from "@/components/auth/auth-forms";
