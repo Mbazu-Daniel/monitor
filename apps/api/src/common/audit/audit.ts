@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { prisma } from "./prisma.ts";
+import { prisma } from "../prisma.ts";
 import { logger } from "../logger.ts";
 import type { Prisma } from "../../generated/prisma/client.ts";
 import type { AuditAction } from "@mivacampus/contracts";

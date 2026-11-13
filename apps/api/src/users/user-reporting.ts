@@ -1,8 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
-import { parsePagination } from "../common/utils/pagination.ts";
-import { scopedOrganizationId } from "../common/utils/tenant-scope.ts";
+import { parsePagination } from "../common/pagination.ts";
+import { scopedOrganizationId } from "../common/tenancy/tenant-scope.ts";
 import type { ListQuery } from "../common/dto/list-query.dto.ts";
 
 @Injectable()

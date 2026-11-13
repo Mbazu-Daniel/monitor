@@ -1,4 +1,4 @@
-import { prisma } from "./prisma.ts";
+import { prisma } from "../prisma.ts";
 import { campusCodeFromName } from "@mivacampus/contracts";
 
 export async function uniqueCampusCode(name: string): Promise<string> {

@@ -5,9 +5,9 @@ import {
 } from "@nestjs/common";
 import type { PrismaClient } from "../generated/prisma/client.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
-import { AuditSink } from "../common/utils/audit.ts";
+import { AuditSink } from "../common/audit/audit.ts";
 import { NotificationAnnouncer } from "../notifications/notification-announcer.ts";
-import { TenantScope } from "../common/utils/tenant-scope.ts";
+import { TenantScope } from "../common/tenancy/tenant-scope.ts";
 import { canEdit, canDelete, type RequestStatus, type CreateRequestDto, type UpdateRequestDto } from "@mivacampus/contracts";
 import type { TenantContext } from "../common/guards/session.types.ts";
 import { RealtimeService } from "../realtime/realtime.service.ts";

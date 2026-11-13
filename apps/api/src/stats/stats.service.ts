@@ -2,9 +2,9 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.ts";
 import { computeAdminStats } from "./admin-stats.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
-import { TenantScope } from "../common/utils/tenant-scope.ts";
-import { averageResolutionHours } from "../common/utils/resolution-hours.ts";
-import { requestIncludeForList, toActor } from "../common/utils/actor.ts";
+import { TenantScope } from "../common/tenancy/tenant-scope.ts";
+import { averageResolutionHours } from "./resolution-hours.ts";
+import { requestIncludeForList, toActor } from "../common/actor.ts";
 import type { TenantContext } from "../common/guards/session.types.ts";
 
 

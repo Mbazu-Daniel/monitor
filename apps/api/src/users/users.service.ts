@@ -7,10 +7,10 @@ import {
 } from "@nestjs/common";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
-import { nextStaffNo } from "../common/utils/staff-no.ts";
-import { hashPassword } from "../common/utils/password.ts";
-import { createCredentialUser, revokeSessions } from "../common/utils/create-credential-user.ts";
-import { AuditSink } from "../common/utils/audit.ts";
+import { nextStaffNo } from "../common/tenancy/staff-no.ts";
+import { hashPassword } from "../common/auth/password.ts";
+import { createCredentialUser, revokeSessions } from "../common/auth/create-credential-user.ts";
+import { AuditSink } from "../common/audit/audit.ts";
 import type { TenantContext } from "../common/guards/session.types.ts";
 import type { CreateUserDto, UpdateUserDto } from "./users.dto.ts";
 

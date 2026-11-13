@@ -2,7 +2,7 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "../src/generated/prisma/client.ts";
-import { createCredentialUser } from "../src/common/utils/create-credential-user.ts";
+import { createCredentialUser } from "../src/common/auth/create-credential-user.ts";
 import {
   DEMO_USER_CREDENTIALS,
   DEMO_CATEGORIES,

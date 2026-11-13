@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Prisma, PrismaClient } from "../generated/prisma/client.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
-import { csvEscape } from "../common/utils/csv.ts";
+import { csvEscape } from "./csv.ts";
 import type { TenantContext } from "../common/guards/session.types.ts";
-import { TenantScope } from "../common/utils/tenant-scope.ts";
+import { TenantScope } from "../common/tenancy/tenant-scope.ts";
 import type { ListQuery } from "../common/dto/list-query.dto.ts";
 
 @Injectable()

@@ -9,7 +9,7 @@ import { Reflector } from "@nestjs/core";
 import type { PrismaClient } from "../../generated/prisma/client.ts";
 import { PRISMA } from "../constants/prisma-token.ts";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator.ts";
-import type { OrgRole } from "../utils/access-control.ts";
+import type { OrgRole } from "../auth/access-control.ts";
 import type { AuthedRequest } from "./session.types.ts";
 import { lookupTenant } from "./session-resolution.ts";
 

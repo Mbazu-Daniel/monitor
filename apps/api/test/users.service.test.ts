@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictException, ForbiddenException } from "@nestjs/common";
 import type { PrismaClient } from "../src/generated/prisma/client.ts";
 import { UsersService } from "../src/users/users.service.ts";
-import { AuditSink } from "../src/common/utils/audit.ts";
+import { AuditSink } from "../src/common/audit/audit.ts";
 import type { CreateUserDto } from "../src/users/users.dto.ts";
 
 const { createCredentialUser, revokeSessions } = vi.hoisted(() => ({
@@ -10,12 +10,12 @@ const { createCredentialUser, revokeSessions } = vi.hoisted(() => ({
   revokeSessions: vi.fn(),
 }));
 
-vi.mock("../src/common/utils/create-credential-user.ts", () => ({
+vi.mock("../src/common/auth/create-credential-user.ts", () => ({
   createCredentialUser,
   revokeSessions,
 }));
 
-vi.mock("../src/common/utils/password.ts", () => ({
+vi.mock("../src/common/auth/password.ts", () => ({
   hashPassword: vi.fn(async () => "hashed-password"),
 }));
 

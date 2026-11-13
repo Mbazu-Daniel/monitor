@@ -5,7 +5,7 @@ import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.
 import { ExportService } from "./export.service.ts";
 import { listQuerySchema, type ListQuery } from "../common/dto/list-query.dto.ts";
 import type { TenantContext } from "../common/guards/session.types.ts";
-import { AuditSink } from "../common/utils/audit.ts";
+import { AuditSink } from "../common/audit/audit.ts";
 
 @RequirePermission("report", "export")
 @Controller("export")

@@ -7,7 +7,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
 import morgan from "morgan";
 import { AppModule } from "./app.module.ts";
-import { getConfig } from "./common/config.ts";
+import { getConfig } from "./common/config/env.ts";
 import { logger } from "./common/logger.ts";
 import { PinoNestLogger } from "./common/pino-nest-logger.ts";
 

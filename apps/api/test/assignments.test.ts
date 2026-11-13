@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import type { PrismaClient } from "../src/generated/prisma/client.ts";
 import { AssignmentsService } from "../src/requests/assignments.service.ts";
-import { AuditSink } from "../src/common/utils/audit.ts";
+import { AuditSink } from "../src/common/audit/audit.ts";
 import { openRequest, makeMocks } from "./test-utils.ts";
 
 const admin = { organizationId: "org-1", role: "ADMIN" as const, memberId: "member-admin" };

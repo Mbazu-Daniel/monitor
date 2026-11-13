@@ -1,8 +1,8 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { PrismaClient } from "../../generated/prisma/client.ts";
+import { PrismaClient } from "../generated/prisma/client.ts";
 
-import { getConfig } from "../config.ts";
+import { getConfig } from "./config/env.ts";
 
 const connectionString = getConfig().DATABASE_URL;
 

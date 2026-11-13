@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { PERMISSIONS_KEY, type RequiredPermissions } from "../decorators/permissions.decorator.ts";
-import { orgRoles } from "../utils/access-control.ts";
+import { orgRoles } from "../auth/access-control.ts";
 import type { AuthedRequest } from "./session.types.ts";
 
 @Injectable()
