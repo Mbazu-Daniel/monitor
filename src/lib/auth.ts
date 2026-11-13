@@ -6,7 +6,7 @@ import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
  * - Sessions: JWT (HS256) stored in an httpOnly cookie
  */
 
-const SECRET = process.env.AUTH_SECRET || "ums-dev-secret-change-in-production-9f2b";
+const SECRET = process.env.BETTER_AUTH_SECRET || process.env.AUTH_SECRET || "ums-dev-secret-change-in-production-9f2b";
 export const SESSION_COOKIE = "ums_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
 
