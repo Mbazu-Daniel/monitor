@@ -7,7 +7,7 @@ import {
 import type { PrismaClient } from "../generated/prisma/client.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
 import { AuditSink } from "../common/utils/audit.ts";
-import { NotificationsService } from "../notifications/notifications.service.ts";
+import { NotificationAnnouncer } from "../notifications/notification-announcer.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { permissionError, type RequestStatus, type StatusUpdateDto } from "@mivacampus/contracts";
 import type { TenantContext } from "../common/guards/session.guard.ts";
@@ -20,7 +20,7 @@ export class StatusChangeService {
   constructor(
     @Inject(PRISMA) private readonly db: PrismaClient,
     private readonly realtime: RealtimeService,
-    private readonly notifications: NotificationsService,
+    private readonly notifications: NotificationAnnouncer,
     private readonly auditSink: AuditSink,
   ) {}
 

@@ -1,12 +1,12 @@
 import { Controller, Get, NotFoundException, Param, Post, Query, HttpCode } from "@nestjs/common";
 import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.decorator.ts";
 import type { TenantContext } from "../common/guards/session.guard.ts";
-import { NotificationsService } from "./notifications.service.ts";
+import { NotificationInbox } from "./notification-inbox.ts";
 import { listQuerySchema, type ListQuery } from "../common/dto/list-query.dto.ts";
 
 @Controller("notifications")
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(private readonly notifications: NotificationInbox) {}
 
   @Get()
   list(@Query({ schema: listQuerySchema }) query: ListQuery, @CurrentUser() user: { id: string }, @CurrentTenant() tenant: TenantContext | undefined) {
