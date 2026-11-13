@@ -57,9 +57,7 @@ async function bootstrap() {
     }),
   );
 
-  if (getConfig().webOrigins.length > 1 || getConfig().WEB_ORIGIN) {
-    app.enableCors({ origin: getConfig().webOrigins, credentials: true });
-  }
+  app.enableCors({ origin: getConfig().webOrigins, credentials: true });
 
   app.setGlobalPrefix("api/v1", { exclude: [{ path: "/", method: RequestMethod.GET }] });
   app.useGlobalPipes(new StandardSchemaValidationPipe());
