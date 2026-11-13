@@ -1,24 +1,29 @@
 import type { Metadata, Viewport } from "next";
-import { Familjen_Grotesk, Hanken_Grotesk, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const hanken = Hanken_Grotesk({
+// Self-hosted fonts — build must not depend on Google Fonts being reachable.
+const hanken = localFont({
+  src: "./fonts/hanken-latin-100900.woff2",
   variable: "--font-hanken",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "100 900",
+  display: "swap",
 });
 
-const familjen = Familjen_Grotesk({
+const familjen = localFont({
+  src: "./fonts/familjen-latin-400700.woff2",
   variable: "--font-familjen",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: "400 700",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/geist-mono-latin-100900.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
