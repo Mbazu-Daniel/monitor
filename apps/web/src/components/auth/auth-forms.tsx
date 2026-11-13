@@ -262,7 +262,7 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
           ) : null}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          {campus ? <span className="font-semibold text-foreground">Joining {campus.name} · <span className="tabular-nums">{campus.code}</span></span> : (<>Code from your campus admin. No campus yet? <button type="button" onClick={() => navigate({ to: "/onboarding" })} className="font-semibold text-[var(--cta)] hover:underline">Set one up</button></>)}
+          {campus ? <span className="font-semibold text-foreground">Joining {campus.name} · <span className="tabular-nums">{campus.code}</span> · <span className="font-mono">{campus.slug}</span></span> : (<>Demo: MIVA Open University · MOU · miva-open-university. No campus yet? <button type="button" onClick={() => navigate({ to: "/onboarding" })} className="font-semibold text-[var(--cta)] hover:underline">Set one up</button></>)}
         </p>
       </div>
 
