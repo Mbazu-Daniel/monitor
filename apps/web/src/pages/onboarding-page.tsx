@@ -110,7 +110,13 @@ function DoneScreen({ done, copied, onCopy, onContinue }: {
           </Button>
         </div>
       </div>
-      <p className="mt-3 text-center text-xs text-muted-foreground">Staff and student numbers start with the code — e.g. {done.code}/0001.</p>
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{done.orgName}</span>{" · "}
+        <span className="tabular-nums">{done.code}</span>{" · "}
+        <span className="font-mono">{done.subdomain}</span>
+        <br />
+        Staff and student numbers start with the code — e.g. {done.code}/0001.
+      </p>
       <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
         <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> You're signed in as the first <span className="font-medium text-foreground">&nbsp;administrator</span>.</li>
         <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> Staff who sign up with this code join your campus automatically.</li>
