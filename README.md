@@ -24,7 +24,7 @@ pnpm install
 docker compose up -d postgres
 
 # apply the schema and seed the demo campus (MIVA Open University, subdomain miva-open-university, code MOU)
-cd apps/api && pnpm db:push && pnpm db:seed && cd ../..
+cd apps/api && pnpm db:migrate:deploy && pnpm db:seed && cd ../..
 
 # run web and API together
 pnpm dev
@@ -47,7 +47,7 @@ Copy `apps/api/.env.example` to `apps/api/.env` and set `DATABASE_URL` (and `BET
 
 Web — Cloudflare Pages, on push to `main` via `.github/workflows/web-deploy.yml`. Builds the static SPA from `apps/web/.output/client`; deep links fall back to `index.html` (`apps/web/public/_redirects`). Set `VITE_API_URL` (repo variable `vars.VITE_API_URL`) to the absolute API URL, and the `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` secrets for `wrangler pages deploy`.
 
-API — container from `apps/api/Dockerfile` (`docker build -f apps/api/Dockerfile .`). Runs `prisma db push` on boot then `node dist/main.js` on :8089.
+API — container from `apps/api/Dockerfile` (`docker build -f apps/api/Dockerfile .`). Runs `prisma migrate deploy` on boot then `node dist/main.js` on :8089. Migrations live in `apps/api/prisma/migrations`; the existing dev database is baselined (the `init` migration is marked applied), fresh databases replay it.
 
 ## Checks
 
