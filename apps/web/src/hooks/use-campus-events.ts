@@ -26,7 +26,8 @@ export function useCampusEvents(onEvent: (event: CampusEvent) => void, requestId
         const event = JSON.parse(message.data) as CampusEvent;
         if (requestId && event.requestId !== requestId && event.reference !== requestId) return;
         handlerRef.current(event);
-      } catch {
+      } catch (err) {
+        console.warn("[REALTIME] malformed event", err);
       }
     };
     return () => source.close();

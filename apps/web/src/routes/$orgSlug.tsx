@@ -4,24 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Outlet, Navigate, useNavigate } from "@tanstack/react-router";
 import { useAppStore } from "@/stores/app-store";
 import { useFetch } from "@/hooks/use-fetch";
-import { api, ApiError } from "@/lib/client";
+import { ApiError } from "@/lib/client";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/app-shell";
 import { Splash } from "@/components/layout/splash";
 import { useEnsureSession } from "@/lib/use-ensure-session";
+import { OrgSummary, switchOrganization } from "@/lib/organizations";
 import type { SessionUser } from "@/types";
 
 export const Route = createFileRoute("/$orgSlug")({
   component: OrgGate,
 });
-
-type OrgSummary = { id: string; name: string; slug: string; role: string };
-
-async function switchToOrganization(organizationId: string, setUser: (u: SessionUser | null) => void) {
-  await api("/api/auth/organization/set-active", { method: "POST", body: JSON.stringify({ organizationId }) });
-  const me = await api<{ user: SessionUser }>("/api/me");
-  setUser(me.user);
-}
 
 function ownsOrg(user: SessionUser | null, orgSlug: string): boolean {
   return Boolean(user?.organizationSlug && user.organizationSlug === orgSlug);
@@ -59,9 +53,9 @@ function useOrgSwitch(membership: OrgSummary | undefined, isOwnOrg: boolean, org
     setSwitching(true);
     (async () => {
       try {
-        await switchToOrganization(membership.id, setUser);
+        await switchOrganization(membership.id, setUser);
       } catch (e) {
-        console.error(e instanceof ApiError ? e.message : e);
+        toast.error(e instanceof ApiError ? e.message : "Could not switch campus");
         switchStarted.current = false;
       } finally {
         setSwitching(false);

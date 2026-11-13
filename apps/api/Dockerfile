@@ -45,6 +45,6 @@ COPY apps/api/package.json apps/api/prisma7.config.ts ./apps/api/
 
 WORKDIR /app/apps/api
 USER node
-# prisma db push keeps the schema in sync on boot (no migration files in this repo);
-# it is a no-op when the database is already current, and fails loudly on drift that would lose data
-CMD ["sh", "-c", "npx prisma db push && exec node dist/main.js"]
+# Apply committed migrations on boot, then start the app. The baseline
+# migration is marked applied in the dev database; fresh databases replay it.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/main.js"]

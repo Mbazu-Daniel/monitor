@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException } from "@nestjs/common";
 import type { TenantContext } from "../guards/session.guard.ts";
 
 const NO_ORGANIZATION = "__never__";
@@ -49,11 +49,5 @@ export class TenantScope {
     const organizationId = this.tenant?.organizationId;
     if (!organizationId) throw new BadRequestException(message);
     return organizationId;
-  }
-
-  assertEntity(entityOrganizationId: string | null | undefined, message = "Not found."): void {
-    if (!this.tenant?.organizationId || entityOrganizationId !== this.tenant.organizationId) {
-      throw new NotFoundException(message);
-    }
   }
 }

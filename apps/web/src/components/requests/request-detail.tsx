@@ -46,18 +46,19 @@ function Evidence({ attachments, onPreview }: { attachments: RequestDetail["atta
         <ImageIcon className="h-3.5 w-3.5" /> Evidence ({attachments.length})
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
-        {attachments.map((a) =>
-          a.fileUrl ? (
-            <button key={a.id} className="group relative h-20 w-20 overflow-hidden rounded-lg border bg-muted" onClick={() => onPreview({ url: a.fileUrl as string, fileName: a.fileName })} aria-label={`View ${a.fileName}`}>
-              <img src={a.fileUrl} alt={a.fileName} className="h-full w-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
+        {attachments.map((a) => {
+          const url = a.fileUrl;
+          return url ? (
+            <button key={a.id} className="group relative h-20 w-20 overflow-hidden rounded-lg border bg-muted" onClick={() => onPreview({ url, fileName: a.fileName })} aria-label={`View ${a.fileName}`}>
+              <img src={url} alt={a.fileName} className="h-full w-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
             </button>
           ) : (
             <div key={a.id} className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-muted px-2 text-center" title="Attachment unavailable">
               <ImageIcon className="h-4 w-4 text-muted-foreground" />
               <span className="w-full truncate text-[10px] text-muted-foreground">{a.fileName}</span>
             </div>
-          ),
-        )}
+          );
+        })}
       </div>
     </div>
   );
@@ -493,12 +494,12 @@ function AssignBody({ loading, officers, officerId, note, busy, isReassign, onOf
 }
 
 function AssignPanel({ requestRef, activeOfficerId, onAssigned }: { requestRef: string; activeOfficerId: string | null; onAssigned: () => void }) {
-  const { data, loading } = useFetch<Paginated<UserRow>>("/api/users?role=OFFICER&pageSize=50");
+  const { data, loading, error, refetch } = useFetch<Paginated<UserRow>>("/api/users?role=OFFICER&pageSize=50");
   const [officerId, setOfficerId] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const officers = data?.items || [];
+  const officers = data?.items ?? [];
   const isReassign = !!officerId && officerId === activeOfficerId;
 
   async function assign() {
@@ -514,6 +515,18 @@ function AssignPanel({ requestRef, activeOfficerId, onAssigned }: { requestRef: 
     } finally {
       setBusy(false);
     }
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-2">
+        <MicroLabel>{activeOfficerId ? "Reassign" : "Assign to officer"}</MicroLabel>
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
+          <p className="text-xs text-muted-foreground">Could not load officers.</p>
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => void refetch()}>Retry</Button>
+        </div>
+      </div>
+    );
   }
 
   return (

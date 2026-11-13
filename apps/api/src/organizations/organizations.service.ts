@@ -8,19 +8,6 @@ import { slugify, uniqueSlug } from "../common/utils/slug.ts";
 import { uniqueCampusCode } from "../common/utils/campus-code.ts";
 import type { CreateOrganizationDto, JoinOrganizationDto } from "./organizations.dto.ts";
 
-function buildAuthHeaders(cookieHeaders: Record<string, string>) {
-  const headers = new Headers();
-  const cookie = cookieHeaders["cookie"];
-  if (cookie) headers.set("cookie", cookie);
-  return headers;
-}
-
-function requireCreatedOrganization<T extends { id?: string | null } | null | undefined>(result: T): asserts result is T & { id: string } {
-  if (!result?.id) {
-    throw new ConflictException("Unable to create the campus right now. Please try again.");
-  }
-}
-
 @Injectable()
 export class OrganizationsService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient, private readonly auditSink: AuditSink) {}
@@ -102,14 +89,15 @@ export class OrganizationsService {
     return provisioned;
   }
 
-  async create(userId: string, dto: CreateOrganizationDto, cookieHeaders: Record<string, string>) {
+  async create(userId: string, dto: CreateOrganizationDto, cookie?: string) {
     const existing = await this.db.member.findFirst({ where: { userId }, select: { id: true } });
     if (existing) {
       throw new ConflictException("You already belong to a campus.");
     }
 
     const { slug, code } = await this.resolveSlugAndCode(dto);
-    const headers = buildAuthHeaders(cookieHeaders);
+    const headers = new Headers();
+    if (cookie) headers.set("cookie", cookie);
 
     await this.applyDepartment(userId, dto.department);
 
@@ -117,7 +105,10 @@ export class OrganizationsService {
       body: { name: dto.name, slug, code },
       headers,
     });
-    requireCreatedOrganization(organization);
+    if (!organization?.id) {
+      throw new ConflictException("Unable to create the campus right now. Please try again.");
+    }
+
 
     const categories = await this.provisionCategories(organization.id, dto.categories);
 

@@ -15,21 +15,12 @@ import {
   ListError, ListLoadingRows,
 } from "@/components/shared";
 import type { Category, Paginated, ServiceRequestRow } from "@/types";
+import type { RequestsSearch } from "@/routes/$orgSlug/requests/index";
 import { useViewNav } from "@/lib/view-nav";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import {
   Search, FileText, PlusCircle, RotateCcw, ChevronLeft, ChevronRight, ImageIcon, MessageSquare, Inbox,
 } from "@/components/icons";
-
-const STATUS_LABELS: Record<string, string> = {
-  OPEN: "Open",
-  ASSIGNED: "Assigned",
-  IN_PROGRESS: "In progress",
-  ON_HOLD: "On hold",
-  RESOLVED: "Resolved",
-  CLOSED: "Closed",
-  REJECTED: "Rejected",
-};
 
 const SORT_LABELS: Record<string, string> = {
   newest: "Newest first",
@@ -41,16 +32,14 @@ const routeApi = getRouteApi("/$orgSlug/requests/");
 
 const SEARCH_KEYS = ["q", "status", "priority", "categoryId", "sort", "page"] as const;
 
-function mergeSearchParams<T extends Record<string, unknown>>(prev: T, patch: Partial<T>): T {
-  const next: Record<string, unknown> = { ...prev, ...patch };
+function mergeSearchParams(prev: RequestsSearch, patch: Partial<RequestsSearch>): RequestsSearch {
+  const next: RequestsSearch = { ...prev, ...patch };
   for (const key of SEARCH_KEYS) {
     if (next[key] === "" || next[key] === undefined) delete next[key];
   }
   if (next.sort === "newest") delete next.sort;
-  return next as T;
+  return next;
 }
-
-const allToEmpty = (v: string) => (v === "all" ? "" : v);
 
 function isStudentOrStaff(role: string | null | undefined): boolean {
   return role === "STUDENT" || role === "STAFF";
@@ -117,7 +106,7 @@ function SearchBox({ q, onQuery }: { q: string; onQuery: (value: string) => void
   );
 }
 
-const filterStatusLabel = (status: string) => (status ? STATUS_LABELS[status] ?? status : "All statuses");
+const filterStatusLabel = (status: string) => (status ? formatStatus(status) : "All statuses");
 const filterPriorityLabel = (priority: string) => (priority ? priority.charAt(0) + priority.slice(1).toLowerCase() : "All priorities");
 const filterCategoryLabel = (categoryId: string, categories: Category[]) =>
   categoryId ? (categories.find((c) => c.id === categoryId)?.name ?? "Category") : "All categories";
@@ -378,7 +367,7 @@ export function RequestsListView() {
   const filters = { search: q, status, priority, categoryId, sort };
   const hasFilters = hasAnyFilter(q, status, priority, categoryId);
 
-  function updateSearch(patch: Partial<{ q: string; status: string; priority: string; categoryId: string; sort: "newest" | "oldest" | "priority"; page: number }>) {
+  function updateSearch(patch: Partial<RequestsSearch>) {
     routeNavigate({
       search: (prev) => mergeSearchParams({ ...prev }, { ...patch }),
       replace: true,
@@ -422,9 +411,9 @@ export function RequestsListView() {
             categoryId={categoryId}
             sort={sort}
             categories={categories?.categories ?? []}
-            onStatus={(v) => updateSearch({ status: allToEmpty(v), page: undefined })}
-            onPriority={(v) => updateSearch({ priority: allToEmpty(v), page: undefined })}
-            onCategory={(v) => updateSearch({ categoryId: allToEmpty(v), page: undefined })}
+            onStatus={(v) => updateSearch({ status: v === "all" ? "" : v, page: undefined })}
+            onPriority={(v) => updateSearch({ priority: v === "all" ? "" : v, page: undefined })}
+            onCategory={(v) => updateSearch({ categoryId: v === "all" ? "" : v, page: undefined })}
             onSort={(v) => updateSearch({ sort: v as "newest" | "oldest" | "priority", page: undefined })}
           />
           {hasFilters && (

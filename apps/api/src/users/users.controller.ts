@@ -4,6 +4,7 @@ import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.
 import type { TenantContext } from "../common/guards/session.guard.ts";
 import { UsersService } from "./users.service.ts";
 import { CreateUserDto, UpdateUserDto } from "./users.dto.ts";
+import { listQuerySchema, type ListQuery } from "../common/dto/list-query.dto.ts";
 
 @Controller("users")
 export class UsersController {
@@ -11,7 +12,7 @@ export class UsersController {
 
   @RequirePermission("user", "manageStudents")
   @Get()
-  list(@Query() query: Record<string, unknown>, @CurrentTenant() tenant: TenantContext | undefined) {
+  list(@Query({ schema: listQuerySchema }) query: ListQuery, @CurrentTenant() tenant: TenantContext | undefined) {
     return this.users.list(query, tenant?.organizationId ?? null, tenant?.role ?? null);
   }
 

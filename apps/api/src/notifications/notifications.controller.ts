@@ -2,13 +2,14 @@ import { Controller, Get, NotFoundException, Param, Post, Query, HttpCode } from
 import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.decorator.ts";
 import type { TenantContext } from "../common/guards/session.guard.ts";
 import { NotificationsService } from "./notifications.service.ts";
+import { listQuerySchema, type ListQuery } from "../common/dto/list-query.dto.ts";
 
 @Controller("notifications")
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Get()
-  list(@Query() query: Record<string, unknown>, @CurrentUser() user: { id: string }, @CurrentTenant() tenant: TenantContext | undefined) {
+  list(@Query({ schema: listQuerySchema }) query: ListQuery, @CurrentUser() user: { id: string }, @CurrentTenant() tenant: TenantContext | undefined) {
     return this.notifications.list(user.id, tenant, query);
   }
 

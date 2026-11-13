@@ -83,13 +83,13 @@ export function WorkBoardView() {
   }
 
   const dragged = jobs.find((j) => j.id === dragId) ?? null;
-  const canDrop = (status: ColumnStatus) => Boolean(dragged) && legalTargets(dragged as ServiceRequestRow, role).includes(status);
+  const canDrop = (status: ColumnStatus) => dragged !== null && legalTargets(dragged, role).includes(status);
 
   const columns = COLUMNS.map((col) => ({
     ...col,
     jobs: jobs
       .filter((r) => r.status === col.status)
-      .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+      .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
   }));
 
   return (

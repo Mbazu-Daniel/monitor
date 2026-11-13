@@ -1,7 +1,6 @@
 import axios from "axios";
 
-const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
-const apiBase = (env.VITE_API_URL ?? "").replace(/\/+$/, "");
+const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
 
 // Absolute API origin when VITE_API_URL is set at build time; otherwise the
 // relative path through the local proxy (vite dev / vite preview)

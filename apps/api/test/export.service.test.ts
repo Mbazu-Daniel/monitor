@@ -30,7 +30,7 @@ function makeFakes() {
 describe("requestsCsv", () => {
   it("renders a BOM-prefixed CSV with the header and quoted values", async () => {
     const { service } = makeFakes();
-    const { csv, count } = await service.requestsCsv({}, { id: "user-1" }, admin);
+    const { csv, count } = await service.requestsCsv({}, admin);
     expect(count).toBe(1);
     expect(csv.charCodeAt(0)).toBe(0xfeff);
     expect(csv).toContain("Reference,Title,Category,Location,Priority,Status,Submitted By,Department,Assigned Officer,Created,Last Updated");
@@ -42,7 +42,7 @@ describe("requestsCsv", () => {
 
   it("restricts officers to their active assignments", async () => {
     const { service, db } = makeFakes();
-    await service.requestsCsv({}, { id: "user-2" }, { organizationId: "org-1", role: "OFFICER" as const, memberId: "member-officer" });
+    await service.requestsCsv({}, { organizationId: "org-1", role: "OFFICER" as const, memberId: "member-officer" });
     expect(db.serviceRequest.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -54,7 +54,7 @@ describe("requestsCsv", () => {
 
   it("applies the status filter", async () => {
     const { service, db } = makeFakes();
-    await service.requestsCsv({ status: "OPEN" }, { id: "user-1" }, admin);
+    await service.requestsCsv({ status: "OPEN" }, admin);
     expect(db.serviceRequest.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ AND: [{ status: "OPEN" }] }),

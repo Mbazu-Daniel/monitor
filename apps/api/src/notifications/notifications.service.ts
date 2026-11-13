@@ -5,6 +5,7 @@ import { logger } from "../common/logger.ts";
 import { parsePagination } from "../common/utils/pagination.ts";
 import type { NotificationType } from "@mivacampus/contracts";
 import type { TenantContext } from "../common/guards/session.guard.ts";
+import type { ListQuery } from "../common/dto/list-query.dto.ts";
 
 export interface AnnounceInput {
   title: string;
@@ -15,7 +16,7 @@ export interface AnnounceInput {
 }
 
 export interface AnnounceAudience {
-  userIds?: (string | null | undefined)[];
+  userIds?: string[];
   orgAdmins?: boolean;
 }
 
@@ -24,7 +25,7 @@ export class NotificationsService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient) {}
   async announce(input: AnnounceInput, audience: AnnounceAudience, tx?: Prisma.TransactionClient) {
     const db = tx ?? this.db;
-    const requestedIds = [...new Set((audience.userIds ?? []).filter((id): id is string => Boolean(id)))];
+    const requestedIds = [...new Set(audience.userIds ?? [])];
 
     if (input.organizationId) {
       let members: { id: string }[] = [];
@@ -98,7 +99,7 @@ export class NotificationsService {
     return { scope: "PLATFORM" as const, userId };
   }
 
-  async list(userId: string, tenant: TenantContext | undefined, query: Record<string, unknown>) {
+  async list(userId: string, tenant: TenantContext | undefined, query: ListQuery) {
     const { skip, take } = parsePagination(query, 10);
     const where = this.inboxWhere(userId, tenant);
 

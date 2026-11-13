@@ -29,14 +29,14 @@ export const ROLE_META: Record<UserRole, { label: string; className: string }> =
 };
 
 export function formatStatus(status: string): string {
-  const meta = STATUS_META[status as RequestStatus];
+  const meta = status in STATUS_META ? STATUS_META[status as RequestStatus] : undefined;
   if (meta) return meta.label;
   const words = status.replace(/_/g, " ").toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export function StatusBadge({ status, className }: { status: RequestStatus; className?: string }) {
-  const meta = STATUS_META[status] || STATUS_META.OPEN;
+  const meta = STATUS_META[status];
   return (
     <Badge variant="outline" className={cn("gap-1.5 font-medium", meta.className, className)}>
       <span className={cn("size-1.5 rounded-full", meta.dot)} />
@@ -46,7 +46,7 @@ export function StatusBadge({ status, className }: { status: RequestStatus; clas
 }
 
 export function PriorityBadge({ priority, className }: { priority: Priority; className?: string }) {
-  const meta = PRIORITY_META[priority] || PRIORITY_META.MEDIUM;
+  const meta = PRIORITY_META[priority];
   return (
     <Badge variant="outline" className={cn("font-medium", meta.className, className)}>
       {meta.label}
@@ -55,7 +55,7 @@ export function PriorityBadge({ priority, className }: { priority: Priority; cla
 }
 
 export function RoleBadge({ role, className }: { role: UserRole | null; className?: string }) {
-  if (!role || !ROLE_META[role]) return null;
+  if (!role) return null;
   const meta = ROLE_META[role];
   return (
     <Badge variant="outline" className={cn("font-medium", meta.className, className)}>

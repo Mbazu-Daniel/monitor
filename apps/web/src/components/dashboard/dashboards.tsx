@@ -20,7 +20,7 @@ import {
   Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
-const STATUS_COLORS: Record<string, string> = {
+const STATUS_COLORS: Record<RequestStatus, string> = {
   OPEN: "#176ae5",
   ASSIGNED: "#4c48c9",
   IN_PROGRESS: "#e8602b",
@@ -222,7 +222,7 @@ function StatusPieSection({ statusData, loading }: { statusData: ReturnType<type
               <PieChart>
                 <Pie isAnimationActive={false} data={statusData} dataKey="value" nameKey="name" innerRadius={44} outerRadius={66} paddingAngle={3} strokeWidth={0}>
                   {statusData.map((entry, i) => (
-                    <Cell key={i} fill={STATUS_COLORS[entry.key] || "#57534e"} />
+                    <Cell key={i} fill={STATUS_COLORS[entry.key]} />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -232,7 +232,7 @@ function StatusPieSection({ statusData, loading }: { statusData: ReturnType<type
           <ul className="grid w-full max-w-md grid-cols-2 gap-x-8 gap-y-2">
             {statusData.map((entry) => (
               <li key={entry.name} className="flex items-center gap-2 border-b border-foreground/15 pb-1.5 text-xs">
-                <span className="h-2.5 w-2.5 shrink-0" style={{ background: STATUS_COLORS[entry.key] || "#57534e" }} />
+                <span className="h-2.5 w-2.5 shrink-0" style={{ background: STATUS_COLORS[entry.key] }} />
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">{entry.name}</span>
                 <span className="tabular-nums text-foreground">{entry.value}</span>
               </li>

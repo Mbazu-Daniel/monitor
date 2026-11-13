@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException } from "@nestjs/common";
 import { TenantScope, scopedOrganizationId } from "../src/common/utils/tenant-scope.ts";
 
 const tenant = { organizationId: "org-1", role: "OFFICER" as const, memberId: "member-1" };
@@ -31,14 +31,6 @@ describe("TenantScope", () => {
   it("requireOrganizationId throws when absent", () => {
     expect(() => TenantScope.of(undefined).requireOrganizationId()).toThrow(BadRequestException);
     expect(TenantScope.of(tenant).requireOrganizationId()).toBe("org-1");
-  });
-
-  it("assertEntity accepts matching rows and rejects mismatched ones as NotFound", () => {
-    const scope = TenantScope.of(tenant);
-    expect(() => scope.assertEntity("org-1")).not.toThrow();
-    expect(() => scope.assertEntity("org-2")).toThrow(NotFoundException);
-    expect(() => scope.assertEntity(null)).toThrow(NotFoundException);
-    expect(() => TenantScope.of(undefined).assertEntity("org-1")).toThrow(NotFoundException);
   });
 });
 

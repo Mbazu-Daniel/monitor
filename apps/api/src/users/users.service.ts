@@ -15,6 +15,7 @@ import { parsePagination } from "../common/utils/pagination.ts";
 import { scopedOrganizationId } from "../common/utils/tenant-scope.ts";
 import type { TenantContext } from "../common/guards/session.guard.ts";
 import type { CreateUserDto, UpdateUserDto } from "./users.dto.ts";
+import type { ListQuery } from "../common/dto/list-query.dto.ts";
 
 function assertStaffCanManageTarget(dto: UpdateUserDto, target: { memberships: { role: string }[] }) {
   if (!target.memberships.every((m) => m.role === "STUDENT")) {
@@ -44,11 +45,10 @@ function buildUserUpdateData(dto: UpdateUserDto): Prisma.UserUpdateInput {
 @Injectable()
 export class UsersService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient, private readonly auditSink: AuditSink) {}
-  async list(query: Record<string, unknown>, organizationId: string | null, actorRole: string | null = null) {
+  async list(query: ListQuery, organizationId: string | null, actorRole: string | null = null) {
     const { page, pageSize, skip, take } = parsePagination(query, 10);
-    const search = typeof query.search === "string" ? query.search.trim() : undefined;
-    const roleInput = typeof query.role === "string" ? query.role : undefined;
-    const role = actorRole === "STAFF" ? "STUDENT" : roleInput;
+    const search = query.search;
+    const role = actorRole === "STAFF" ? "STUDENT" : query.role;
 
     const and: Prisma.UserWhereInput[] = [
       { memberships: { some: { organizationId: scopedOrganizationId(organizationId) } } },
@@ -120,14 +120,14 @@ export class UsersService {
     return { items, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
   }
 
-  private assertCreateAllowed(dto: CreateUserDto, tenant: TenantContext | undefined) {
+  private assertCreateAllowed(dto: CreateUserDto, tenant: TenantContext | undefined): string | null {
     const organizationId = tenant?.organizationId ?? null;
     const actorRole = tenant?.role ?? null;
     if (actorRole === "STAFF") {
       if (!organizationId) throw new ForbiddenException("Staff can only add students inside a campus.");
       if (dto.role !== "STUDENT") throw new ForbiddenException("Staff can only create student accounts.");
     }
-    return { organizationId, actorRole };
+    return organizationId;
   }
 
   private async maybeAssignMatricNo(
@@ -149,7 +149,7 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto, actor: { id: string; name: string }, tenant: TenantContext | undefined) {
-    const { organizationId } = this.assertCreateAllowed(dto, tenant);
+    const organizationId = this.assertCreateAllowed(dto, tenant);
     const email = dto.email.trim().toLowerCase();
     const existing = await this.db.user.findUnique({ where: { email } });
     if (existing) throw new ConflictException("A user with this email already exists.");

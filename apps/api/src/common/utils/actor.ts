@@ -17,9 +17,9 @@ export const requestIncludeForList = {
   _count: { select: { comments: true } },
 } satisfies Prisma.ServiceRequestInclude;
 
-export function toActor<M extends { role: string; user: Record<string, unknown> }>(
-  member: M | null | undefined,
-): (M["user"] & { role: string }) | null {
+export function toActor<U extends object>(
+  member: { role: string; user: U } | null | undefined,
+): (U & { role: string }) | null {
   if (!member) return null;
   return { ...member.user, role: member.role };
 }

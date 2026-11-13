@@ -11,7 +11,7 @@ import { MAX_IMAGE_MIME_TYPES, MAX_UPLOAD_BYTES } from "@mivacampus/contracts";
 import type { TenantContext } from "../common/guards/session.guard.ts";
 import { TenantScope } from "../common/utils/tenant-scope.ts";
 import { canAttach } from "@mivacampus/contracts";
-import { ObjectStorage } from "../common/utils/object-storage.ts";
+import { ObjectStorage, UPLOAD_URL_TTL_SECONDS } from "../common/utils/object-storage.ts";
 import { logger } from "../common/logger.ts";
 import { scopedRequestLookup } from "../requests/request-access.ts";
 import type { CreateAttachmentUploadDto } from "./attachments.dto.ts";
@@ -30,10 +30,6 @@ export class AttachmentsService {
     return request;
   }
 
-  private canAttach(request: { creatorId: string; assignments: { officerId: string; isActive: boolean }[] }, tenant: TenantContext | undefined): boolean {
-    return canAttach({ role: tenant?.role, id: tenant?.memberId }, request);
-  }
-
   private withUploadUrls<A extends { key: string; status: string }>(attachments: A[]): Promise<(A & { fileUrl: string | null })[]> {
     return Promise.all(
       attachments.map(async (attachment) => {
@@ -41,7 +37,7 @@ export class AttachmentsService {
           return { ...attachment, fileUrl: null };
         }
         try {
-          return { ...attachment, fileUrl: await this.storage.fileUrl(attachment.key) };
+          return { ...attachment, fileUrl: await this.storage.presignDownloadUrl(attachment.key) };
         } catch (err) {
           logger.warn({ err, attachment: attachment.key }, "[ATTACHMENT_URL_FAILED]");
           return { ...attachment, fileUrl: null };
@@ -56,12 +52,11 @@ export class AttachmentsService {
     if (!organizationId || !memberId) throw new BadRequestException("You must be in a campus to attach evidence.");
 
     const request = await this.loadRequestFor(requestId, tenant);
-    if (!this.canAttach(request, tenant)) {
+    if (!canAttach({ role: tenant?.role, id: tenant?.memberId }, request)) {
       throw new ForbiddenException("Only the request creator, an assigned officer, or an administrator can add evidence.");
     }
 
-    const ttlSeconds = this.storage.getUploadUrlTtlSeconds();
-    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+    const expiresAt = new Date(Date.now() + UPLOAD_URL_TTL_SECONDS * 1000);
     const key = this.storage.buildAttachmentKey(requestId, dto.fileName);
     const uploadUrl = await this.storage.presignUploadUrl(key, dto.mimeType, dto.sizeBytes);
     const attachment = await this.db.attachment.create({
@@ -114,19 +109,18 @@ export class AttachmentsService {
     };
 
     if (!meta) {
-      await fail("that file has not been uploaded");
+      return fail("that file has not been uploaded");
     }
-    const resolvedMeta = meta as NonNullable<typeof meta>;
-    if (attachment.sizeBytes !== null && resolvedMeta.sizeBytes !== attachment.sizeBytes) {
+    if (attachment.sizeBytes !== null && meta.sizeBytes !== attachment.sizeBytes) {
       await fail("the uploaded object does not have the declared size");
     }
-    if (resolvedMeta.contentType !== attachment.mimeType) {
+    if (meta.contentType !== attachment.mimeType) {
       await fail("the uploaded object does not have the declared content type");
     }
 
     const ready = await this.db.attachment.update({
       where: { id: attachment.id },
-      data: { status: "READY", sizeBytes: resolvedMeta.sizeBytes, uploadExpiresAt: null },
+      data: { status: "READY", sizeBytes: meta.sizeBytes, uploadExpiresAt: null },
     });
     const [withUrl] = await this.withUploadUrls([ready]);
     return withUrl;

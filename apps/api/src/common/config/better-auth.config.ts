@@ -6,7 +6,7 @@ import { prisma } from "../utils/prisma.ts";
 import { getConfig } from "../config.ts";
 import { hashPassword, verifyPassword } from "../utils/password.ts";
 import { ac, ADMIN, OFFICER, STAFF, STUDENT } from "../utils/access-control.ts";
-import { auditPlatform } from "../utils/audit.ts";
+import { persistQuietly } from "../utils/audit.ts";
 import { trySendMail } from "../mail/mail.ts";
 import { welcomeEmail } from "../mail/templates/welcome.ts";
 import { resetPasswordEmail } from "../mail/templates/reset-password.ts";
@@ -100,7 +100,7 @@ export const auth = betterAuth({
       },
       organizationHooks: {
         afterCreateInvitation: async ({ invitation, inviter, organization: org }) => {
-          await auditPlatform({
+          await persistQuietly({
             userId: inviter.id,
             action: "MEMBER_INVITED",
             entityType: "ORGANIZATION",

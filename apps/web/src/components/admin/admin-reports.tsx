@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { download } from "@/lib/client";
 import { toast } from "sonner";
@@ -9,15 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatCard, EmptyState, PageHeader, timeAgo, formatStatus } from "@/components/shared";
-import type { AdminStats, RequestStatus } from "@/types";
+import type { AdminStats } from "@/types";
+import { STATUSES } from "@mivacampus/contracts";
 import {
   Download, FileSpreadsheet, TrendingUp, CheckCircle2, Timer, FolderOpen, ClipboardList, Users, Loader2,
 } from "@/components/icons";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const ALL_STATUSES: RequestStatus[] = ["OPEN", "ASSIGNED", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED", "REJECTED"];
-
-const allToEmpty = (v: string) => (v === "all" ? "" : v);
 const exportStatusLabel = (s: string) => (s ? formatStatus(s) : "All statuses");
 const statValue = (loading: boolean, v: number | null | undefined) => (loading ? "…" : v ?? 0);
 const avgResolutionValue = (loading: boolean, input: AdminStats | null) =>
@@ -146,7 +144,7 @@ export function ReportsView() {
   const [exportStatus, setExportStatus] = useState("");
   const [exporting, setExporting] = useState(false);
 
-  const trendData = useMemo(() => data?.monthlyTrend || [], [data]);
+  const trendData = data?.monthlyTrend ?? [];
 
   async function exportCsv() {
     setExporting(true);
@@ -164,11 +162,11 @@ export function ReportsView() {
     <div className="space-y-5">
       <PageHeader title="Reports & Export" description="Operational metrics and downloadable CSV reports for management.">
         <div className="flex items-center gap-2">
-          <Select value={exportStatus || "all"} onValueChange={(v) => setExportStatus(allToEmpty(v))}>
+          <Select value={exportStatus || "all"} onValueChange={(v) => setExportStatus(v === "all" ? "" : v)}>
             <SelectTrigger className="w-44" aria-label="Export filter status"><SelectValue>{exportStatusLabel(exportStatus)}</SelectValue></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{formatStatus(s)}</SelectItem>)}
+              {STATUSES.map((s) => <SelectItem key={s} value={s}>{formatStatus(s)}</SelectItem>)}
             </SelectContent>
           </Select>
           <ExportButton exporting={exporting} onExport={() => void exportCsv()} />

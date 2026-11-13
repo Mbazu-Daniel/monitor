@@ -9,10 +9,6 @@ describe("StatusBadge", () => {
     expect(screen.getByText(meta.label)).toBeInTheDocument();
   });
 
-  it("falls back to the Open badge for an unknown status", () => {
-    render(<StatusBadge status={"BOGUS" as RequestStatus} />);
-    expect(screen.getByText("Open")).toBeInTheDocument();
-  });
 });
 
 describe("PriorityBadge", () => {
@@ -21,10 +17,6 @@ describe("PriorityBadge", () => {
     expect(screen.getByText(meta.label)).toBeInTheDocument();
   });
 
-  it("falls back to the medium badge for an unknown priority", () => {
-    render(<PriorityBadge priority={"BOGUS" as Priority} />);
-    expect(screen.getByText("Medium")).toBeInTheDocument();
-  });
 });
 
 describe("RoleBadge", () => {
@@ -38,8 +30,4 @@ describe("RoleBadge", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing for an unknown role", () => {
-    const { container } = render(<RoleBadge role={"SUPERUSER" as UserRole} />);
-    expect(container).toBeEmptyDOMElement();
-  });
 });

@@ -192,6 +192,7 @@ export function NotificationsPanel({ open, onOpenChange }: { open: boolean; onOp
 
 function DetailView({ notification: n, onBack, onOpenChange }: { notification: NotificationRow; onBack: () => void; onOpenChange: (open: boolean) => void }) {
   const navigate = useViewNav();
+  const requestReference = n.requestReference;
 
   return (
     <>
@@ -213,21 +214,21 @@ function DetailView({ notification: n, onBack, onOpenChange }: { notification: N
           <p className="whitespace-pre-line text-[14px] leading-relaxed text-foreground/90">{n.message}</p>
         </div>
 
-        {n.requestReference && (
+        {requestReference && (
           <div className="mt-4 overflow-hidden rounded-2xl border border-border">
             <p className="border-b border-border/70 bg-secondary/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Related request</p>
             <button
               className="group flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-secondary/70"
               onClick={() => {
                 onOpenChange(false);
-                navigate("request-detail", n.requestReference!);
+                navigate("request-detail", requestReference);
               }}
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-colors group-hover:bg-[var(--accent-soft)] group-hover:text-[var(--accent-deep)]">
                 {n.type === "ASSIGNMENT" ? <Zap className="h-5 w-5" /> : <ClipboardList className="h-5 w-5" />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13.5px] font-semibold tabular-nums">{n.requestReference}</span>
+                <span className="block text-[13.5px] font-semibold tabular-nums">{requestReference}</span>
                 <span className="block text-[12px] text-muted-foreground">Open the request to see progress and act on it</span>
               </span>
               <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />

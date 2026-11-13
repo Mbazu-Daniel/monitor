@@ -70,7 +70,7 @@ describe("UserManagement (all)", () => {
     await user.type(screen.getByLabelText("Email"), "not-an-email");
     await user.type(screen.getByLabelText("Temporary password"), "secret123");
     await user.click(screen.getByRole("button", { name: /create user/i }));
-    expect(await screen.findByText("Valid email required.")).toBeInTheDocument();
+    expect(await screen.findByText("A valid email is required")).toBeInTheDocument();
     expect(api).not.toHaveBeenCalled();
   });
 

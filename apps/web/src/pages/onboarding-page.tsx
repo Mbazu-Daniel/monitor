@@ -14,6 +14,7 @@ import { api, ApiError } from "@/lib/client";
 import { useAppStore } from "@/stores/app-store";
 import { campusCodeFromName } from "@mivacampus/contracts";
 import { validateOnboardingStep, type OnboardingForm } from "@/lib/onboarding";
+import { useCopied } from "@/hooks/use-copied";
 import type { SessionUser } from "@/types";
 
 const STEPS = ["Your campus", "Admin account", "Starting categories", "Review & create"] as const;
@@ -428,50 +429,6 @@ function useOnboardingSession() {
   return { session, me, setUser, setAuthChecked };
 }
 
-function SelectStep({ step, form, subdomain, code, errors, showPwd, selected, customs, customName, categoryPayload, onSet, onSubdomainChange, onCodeChange, onTogglePreset, onCustomNameChange, onAddCustom, onRemoveCustom, onTogglePwd }: {
-  step: number;
-  form: OnboardingForm;
-  subdomain: string;
-  code: string;
-  errors: Record<string, string>;
-  showPwd: boolean;
-  selected: string[];
-  customs: string[];
-  customName: string;
-  categoryPayload: { name: string; description: string; icon: string }[];
-  onSet: (k: keyof OnboardingForm, v: string) => void;
-  onSubdomainChange: (v: string) => void;
-  onCodeChange: (v: string) => void;
-  onTogglePreset: (name: string) => void;
-  onCustomNameChange: (v: string) => void;
-  onAddCustom: () => void;
-  onRemoveCustom: (name: string) => void;
-  onTogglePwd: () => void;
-}) {
-  if (step === 1) {
-    return <CampusStep form={form} subdomain={subdomain} code={code} errors={errors} onSet={onSet} onSubdomainChange={onSubdomainChange} onCodeChange={onCodeChange} />;
-  }
-  if (step === 2) {
-    return <AdminStep form={form} errors={errors} showPwd={showPwd} onTogglePwd={onTogglePwd} onSet={onSet} />;
-  }
-  if (step === 3) {
-    return (
-      <CategoriesStep
-        selected={selected}
-        customs={customs}
-        customName={customName}
-        errors={errors}
-        onTogglePreset={onTogglePreset}
-        onCustomNameChange={onCustomNameChange}
-        onAddCustom={onAddCustom}
-        onRemoveCustom={onRemoveCustom}
-        selectedCount={categoryPayload.length}
-      />
-    );
-  }
-  return <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} />;
-}
-
 async function createCampus({ form, subdomain, code, categories }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[] }) {
   await api("/api/auth/sign-up/email", {
     method: "POST",
@@ -505,7 +462,7 @@ export function OnboardingPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ subdomain: string; code: string; orgName: string } | null>(null);
-  const [copied, setCopied] = useState<"subdomain" | "code" | null>(null);
+  const { copied, copy } = useCopied<"subdomain" | "code">();
 
   const set = (k: keyof OnboardingForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const subdomain = subdomainTouched ? form.subdomain : slugify(form.organizationName);
@@ -513,7 +470,7 @@ export function OnboardingPage() {
 
   const categoryPayload = useMemo(
     () => [
-      ...PRESETS.filter((p) => selected.includes(p.name)).map((p) => ({ name: p.name as string, description: p.description as string, icon: p.iconName as string })),
+      ...PRESETS.filter((p) => selected.includes(p.name)).map((p) => ({ name: p.name, description: p.description, icon: p.iconName })),
       ...customs.map((name) => ({ name, description: "", icon: "Wrench" })),
     ],
     [selected, customs]
@@ -563,17 +520,6 @@ export function OnboardingPage() {
     }
   }
 
-  async function copyDone(value: string, kind: "subdomain" | "code") {
-    if (!done) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(kind);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      // clipboard unavailable — the value stays visible on screen
-    }
-  }
-
   async function signOutAndReset() {
     try {
       await api("/api/auth/sign-out", { method: "POST" });
@@ -582,28 +528,28 @@ export function OnboardingPage() {
     }
   }
 
-  const stepNode = (
-    <SelectStep
-      step={step}
-      form={form}
-      subdomain={subdomain}
-      code={code}
-      errors={errors}
-      showPwd={showPwd}
-      selected={selected}
-      customs={customs}
-      customName={customName}
-      categoryPayload={categoryPayload}
-      onSet={set}
-      onSubdomainChange={(v) => { setSubdomainTouched(true); set("subdomain", v.toLowerCase().replace(/[^a-z0-9-]/g, "")); }}
-      onCodeChange={(v) => { setCodeTouched(true); set("code", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10)); }}
-      onTogglePreset={togglePreset}
-      onCustomNameChange={setCustomName}
-      onAddCustom={addCustom}
-      onRemoveCustom={(name) => setCustoms((prev) => prev.filter((n) => n !== name))}
-      onTogglePwd={() => setShowPwd((v) => !v)}
-    />
-  );
+  const onSubdomainChange = (v: string) => { setSubdomainTouched(true); set("subdomain", v.toLowerCase().replace(/[^a-z0-9-]/g, "")); };
+  const onCodeChange = (v: string) => { setCodeTouched(true); set("code", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10)); };
+  const stepNode =
+    step === 1 ? (
+      <CampusStep form={form} subdomain={subdomain} code={code} errors={errors} onSet={set} onSubdomainChange={onSubdomainChange} onCodeChange={onCodeChange} />
+    ) : step === 2 ? (
+      <AdminStep form={form} errors={errors} showPwd={showPwd} onTogglePwd={() => setShowPwd((v) => !v)} onSet={set} />
+    ) : step === 3 ? (
+      <CategoriesStep
+        selected={selected}
+        customs={customs}
+        customName={customName}
+        errors={errors}
+        onTogglePreset={togglePreset}
+        onCustomNameChange={setCustomName}
+        onAddCustom={addCustom}
+        onRemoveCustom={(name) => setCustoms((prev) => prev.filter((n) => n !== name))}
+        selectedCount={categoryPayload.length}
+      />
+    ) : (
+      <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} />
+    );
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
@@ -616,7 +562,7 @@ export function OnboardingPage() {
             me={me}
             done={done}
             copied={copied}
-            onCopy={copyDone}
+            onCopy={copy}
             onAuthedContinue={() => navigate({ to: "/" })}
             onDoneContinue={() => navigate({ to: "/" })}
             onSignOut={signOutAndReset}
