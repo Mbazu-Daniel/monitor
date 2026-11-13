@@ -27,8 +27,27 @@ async function bootstrap() {
   app.useBodyParser("json", { limit: "12mb" });
   app.useBodyParser("urlencoded", { extended: true, limit: "2mb" });
 
-  app.use(helmet({ contentSecurityPolicy: false }));
-  app.use(compression());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+    }),
+  );
+  app.use(
+    compression({
+      filter: (req, res) =>
+        !(typeof req.url === "string" && req.url.includes("/realtime/stream")) && compression.filter(req, res),
+    }),
+  );
   app.use(
     morgan(":method :url :status :res[content-length] - :response-time ms", {
       stream: {
