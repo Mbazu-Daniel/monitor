@@ -10,3 +10,6 @@ allowBuilds:
   '@node-rs/argon2': true
   '@swc/core': true
   protobufjs: true
+minimumReleaseAgeExclude:
+  - '@soonwhy/nest@0.1.0'
+  - '@soonwhy/node@0.1.0'

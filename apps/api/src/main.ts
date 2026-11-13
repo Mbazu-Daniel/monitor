@@ -15,7 +15,11 @@ async function bootstrap() {
   const nestLogger = new PinoNestLogger(logger);
   Logger.overrideLogger(nestLogger);
 
-  const app = await NestFactory.create<NestNodeApplication>(AppModule, new NodeAdapter(), { bodyParser: false, bufferLogs: true });
+  const app = await NestFactory.create<NestNodeApplication>(
+    AppModule,
+    new NodeAdapter({ trustProxy: getConfig().TRUST_PROXY === "true" }),
+    { bodyParser: false, bufferLogs: true },
+  );
   app.useLogger(nestLogger);
   app.flushLogs();
   app.enableShutdownHooks();
@@ -23,8 +27,27 @@ async function bootstrap() {
   app.useBodyParser("json", { limit: "12mb" });
   app.useBodyParser("urlencoded", { extended: true, limit: "2mb" });
 
-  app.use(helmet({ contentSecurityPolicy: false }));
-  app.use(compression());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+    }),
+  );
+  app.use(
+    compression({
+      filter: (req, res) =>
+        !(typeof req.url === "string" && req.url.includes("/realtime/stream")) && compression.filter(req, res),
+    }),
+  );
   app.use(
     morgan(":method :url :status :res[content-length] - :response-time ms", {
       stream: {
@@ -34,9 +57,7 @@ async function bootstrap() {
     }),
   );
 
-  if (getConfig().webOrigins.length > 1 || getConfig().WEB_ORIGIN) {
-    app.enableCors({ origin: getConfig().webOrigins, credentials: true });
-  }
+  app.enableCors({ origin: getConfig().webOrigins, credentials: true });
 
   app.setGlobalPrefix("api/v1", { exclude: [{ path: "/", method: RequestMethod.GET }] });
   app.useGlobalPipes(new StandardSchemaValidationPipe());

@@ -3,7 +3,8 @@ import axios from "axios";
 const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
 
 export function apiUrl(path: string): string {
-  return apiBase ? `${apiBase}${path}` : path;
+  if (!apiBase) return path;
+  return `${apiBase}${path.replace(/^\/api(?!\/v1)/, "/api/v1")}`;
 }
 
 export class ApiError extends Error {

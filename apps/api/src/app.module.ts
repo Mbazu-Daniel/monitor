@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { SoonwhyModule } from "@soonwhy/nest";
 import { AuthGuard } from "./common/guards/auth.guard.ts";
 import { PermissionsGuard } from "./common/guards/permissions.guard.ts";
 import { AuthController } from "./auth/auth.controller.ts";
@@ -23,6 +24,12 @@ import { CommonModule } from "./common/common.module.ts";
   imports: [
     CommonModule,
     ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 300 }]),
+    SoonwhyModule.forRoot({
+      apiKey: process.env.SOONWHY_API_KEY!,
+      serviceName: "mivacampus-api",
+      environment: "development",
+      registerShutdownHandlers: false,
+    }),
     MeModule,
     OrganizationsModule,
     UsersModule,
