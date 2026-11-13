@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
+const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "").replace(/\/api\/v1$/, "");
 
 export function apiUrl(path: string): string {
   if (!apiBase) return path;
