@@ -22,8 +22,8 @@ describe("viewPath", () => {
     expect(viewPath("miva", "request-detail", "SR-42")).toEqual({ to: "/$orgSlug/requests/$reference", params: { orgSlug: "miva", reference: "SR-42" } });
   });
 
-  it("defaults a missing reference to an empty string", () => {
-    expect(viewPath("miva", "request-detail")).toEqual({ to: "/$orgSlug/requests/$reference", params: { orgSlug: "miva", reference: "" } });
+  it("throws when request-detail is asked for without a reference", () => {
+    expect(() => viewPath("miva", "request-detail")).toThrow();
   });
 });
 

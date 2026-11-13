@@ -15,8 +15,10 @@ export function viewPath(slug: string, view: ViewKey, reference?: string) {
       return { to: "/$orgSlug/requests", params } as const;
     case "new-request":
       return { to: "/$orgSlug/requests/new", params } as const;
-    case "request-detail":
-      return { to: "/$orgSlug/requests/$reference", params: { ...params, reference: reference ?? "" } } as const;
+    case "request-detail": {
+      if (!reference) throw new Error("viewPath: reference is required for request-detail");
+      return { to: "/$orgSlug/requests/$reference", params: { ...params, reference } } as const;
+    }
     case "users":
       return { to: "/$orgSlug/users", params } as const;
     case "students":

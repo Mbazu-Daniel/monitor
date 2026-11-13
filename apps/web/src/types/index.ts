@@ -1,8 +1,9 @@
 
 
-export type UserRole = "STUDENT" | "STAFF" | "OFFICER" | "ADMIN";
-export type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-export type RequestStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "ON_HOLD" | "RESOLVED" | "CLOSED" | "REJECTED";
+import type { AppRole, Priority, RequestStatus } from "@mivacampus/contracts";
+
+export type UserRole = AppRole;
+export type { Priority, RequestStatus };
 
 export interface SessionUser {
   id: string;
@@ -44,8 +45,6 @@ export interface AttachmentMeta {
   id: string;
   fileName: string;
   mimeType: string;
-  sizeBytes: number | null;
-  status?: string;
   fileUrl?: string | null;
 }
 
