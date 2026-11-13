@@ -3,17 +3,18 @@ import { RequirePermission } from "../common/decorators/permissions.decorator.ts
 import { CurrentTenant, CurrentUser } from "../common/decorators/current-tenant.decorator.ts";
 import type { TenantContext } from "../common/guards/session.guard.ts";
 import { UsersService } from "./users.service.ts";
+import { UserReportingService } from "./user-reporting.ts";
 import { CreateUserDto, UpdateUserDto } from "./users.dto.ts";
 import { listQuerySchema, type ListQuery } from "../common/dto/list-query.dto.ts";
 
 @Controller("users")
 export class UsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(private readonly users: UsersService, private readonly reporting: UserReportingService) {}
 
   @RequirePermission("user", "manageStudents")
   @Get()
   list(@Query({ schema: listQuerySchema }) query: ListQuery, @CurrentTenant() tenant: TenantContext | undefined) {
-    return this.users.list(query, tenant?.organizationId ?? null, tenant?.role ?? null);
+    return this.reporting.list(query, tenant?.organizationId ?? null, tenant?.role ?? null);
   }
 
   @RequirePermission("user", "manageStudents")
