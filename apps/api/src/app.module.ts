@@ -5,6 +5,7 @@ import { AuthGuard } from "./common/guards/auth.guard.ts";
 import { PermissionsGuard } from "./common/guards/permissions.guard.ts";
 import { AuthController } from "./auth/auth.controller.ts";
 import { HealthController } from "./health.controller.ts";
+import { WelcomeController } from "./welcome.controller.ts";
 import { MeModule } from "./me/me.module.ts";
 import { OrganizationsModule } from "./organizations/organizations.module.ts";
 import { UsersModule } from "./users/users.module.ts";
@@ -34,7 +35,7 @@ import { CommonModule } from "./common/common.module.ts";
     AttachmentsModule,
     RealtimeModule,
   ],
-  controllers: [AuthController, HealthController],
+  controllers: [AuthController, HealthController, WelcomeController],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
