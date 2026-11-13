@@ -31,6 +31,30 @@ describe("useEnsureSession", () => {
     expect(api).toHaveBeenCalledWith("/api/me");
   });
 
+  it("signs the user into their organization on bootstrap", async () => {
+    const user = {
+      id: "u1",
+      name: "Ada",
+      email: "ada@miva.edu",
+      role: "STAFF" as const,
+      createdAt: "2026-11-01T00:00:00.000Z",
+      organizationId: "org-1",
+      organizationName: "MIVA Open University",
+      organizationSlug: "miva-open-university",
+      organizationCode: "MOU",
+    };
+    api.mockImplementation((url: string) => {
+      if (url === "/api/auth/organization/set-active") return Promise.resolve({});
+      return Promise.resolve({ user });
+    });
+    renderHook(() => useEnsureSession());
+    await waitFor(() => expect(useAppStore.getState().user?.organizationSlug).toBe("miva-open-university"));
+    expect(api).toHaveBeenCalledWith(
+      "/api/auth/organization/set-active",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ organizationId: "org-1" }) }),
+    );
+  });
+
   it("marks auth as checked even when the fetch fails", async () => {
     api.mockRejectedValue(new Error("network"));
     renderHook(() => useEnsureSession());
