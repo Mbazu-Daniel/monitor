@@ -60,8 +60,7 @@ export const passwordSchema = z
   .regex(/[A-Za-z]/, "Password must contain at least one letter")
   .regex(/[0-9]/, "Password must contain at least one number");
 
-export const passwordMeetsPolicy = (password: string): boolean =>
-  password.length >= 8 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+export const passwordMeetsPolicy = (password: string): boolean => passwordSchema.safeParse(password).success;
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, "Full name is required").max(100),

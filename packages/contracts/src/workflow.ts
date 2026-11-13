@@ -11,11 +11,11 @@ export const TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
 };
 
 export function canTransition(from: RequestStatus, to: RequestStatus): boolean {
-  return (TRANSITIONS[from] ?? []).includes(to);
+  return TRANSITIONS[from].includes(to);
 }
 
 export interface WorkflowActor {
-  role: AppRole | "STUDENT" | null | undefined;
+  role: AppRole | null | undefined;
   isAssignedOfficer: boolean;
   isCreator: boolean;
 }
