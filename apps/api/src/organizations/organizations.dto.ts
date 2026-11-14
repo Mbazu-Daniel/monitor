@@ -21,6 +21,7 @@ export const CreateOrganizationDto = z.object({
   name: z.string().trim().min(2).max(120),
   slug: Subdomain.optional(),
   code: CampusCode.optional(),
+  adminName: z.string().trim().min(2, "Enter the administrator's name").max(100).optional().or(z.literal("")),
   department: z.string().trim().max(120).optional().or(z.literal("")),
   categories: startingCategoriesSchema,
 });
@@ -32,3 +33,8 @@ export const JoinOrganizationDto = z.object({
   phone: z.string().trim().max(30).optional().or(z.literal("")),
 });
 export type JoinOrganizationDto = z.infer<typeof JoinOrganizationDto>;
+
+export const UpdateOrganizationCodeDto = z.object({
+  code: CampusCode,
+});
+export type UpdateOrganizationCodeDto = z.infer<typeof UpdateOrganizationCodeDto>;

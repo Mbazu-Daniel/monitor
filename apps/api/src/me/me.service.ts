@@ -35,6 +35,7 @@ export class MeService {
     return {
       user: {
         ...dbUser,
+        name: membership?.name ?? dbUser?.name,
         role: membership?.role ?? null,
         organizationId,
         organizationName: organization?.name ?? null,

@@ -23,6 +23,7 @@ const ACTION_GROUPS = [
   { value: "REQUEST_DELETED", label: "Deletions" },
   { value: "CATEGORY_CREATED", label: "Category created" },
   { value: "ORGANIZATION_CREATED", label: "Campus creation" },
+  { value: "ORGANIZATION_UPDATED", label: "Campus updates" },
   { value: "MEMBER_INVITED", label: "Member invites" },
   { value: "DATA_EXPORTED", label: "Data exports" },
 ];

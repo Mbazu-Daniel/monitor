@@ -9,6 +9,11 @@ import { uniqueCampusCode } from "../common/tenancy/campus-code.ts";
 import { isUniqueViolation } from "../common/db-errors.ts";
 import type { CreateOrganizationDto, JoinOrganizationDto } from "./organizations.dto.ts";
 
+function betterAuthErrorCode(error: unknown): string | null {
+  const code = (error as { body?: { code?: unknown } | undefined } | null | undefined)?.body?.code;
+  return typeof code === "string" ? code : null;
+}
+
 @Injectable()
 export class OrganizationsService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient, private readonly auditSink: AuditSink) {}
@@ -101,11 +106,6 @@ export class OrganizationsService {
   }
 
   async create(userId: string, dto: CreateOrganizationDto, cookie?: string) {
-    const existing = await this.db.member.findFirst({ where: { userId }, select: { id: true } });
-    if (existing) {
-      throw new ConflictException("You already belong to a campus.");
-    }
-
     const { slug, code } = await this.resolveSlugAndCode(dto);
     const headers = new Headers();
     if (cookie) headers.set("cookie", cookie);
@@ -119,8 +119,10 @@ export class OrganizationsService {
         headers,
       });
     } catch (error) {
-      const membership = await this.db.member.findFirst({ where: { userId }, select: { id: true } });
-      if (membership) throw new ConflictException("You already belong to a campus.");
+      const errorCode = betterAuthErrorCode(error);
+      if (errorCode === "ORGANIZATION_ALREADY_EXISTS" || errorCode === "ORGANIZATION_SLUG_ALREADY_TAKEN") {
+        throw new ConflictException("That subdomain is already taken. Try another.");
+      }
       if (isUniqueViolation(error)) throw new ConflictException("That subdomain or campus code was just taken. Try another.");
       throw error;
     }
@@ -128,6 +130,12 @@ export class OrganizationsService {
       throw new ConflictException("Unable to create the campus right now. Please try again.");
     }
 
+    if (dto.adminName?.trim()) {
+      await this.db.member.update({
+        where: { organizationId_userId: { organizationId: organization.id, userId } },
+        data: { name: dto.adminName.trim() },
+      });
+    }
 
     const categories = await this.provisionCategories(organization.id, dto.categories);
 
@@ -135,6 +143,43 @@ export class OrganizationsService {
     await this.auditSink.platform({ userId, memberId: creatorMemberId, action: "ORGANIZATION_CREATED", entityType: "ORGANIZATION", entityId: organization.id, details: `Campus "${organization.name}" created with ${categories.length} starter categories`, organizationId: organization.id });
 
     return organization;
+  }
+
+  
+  async updateCode(organizationId: string | null, userId: string, code: string, memberId: string | null) {
+    if (!organizationId) throw new NotFoundException("You do not belong to a campus.");
+    const organization = await this.db.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true, slug: true, code: true },
+    });
+    if (!organization) throw new NotFoundException("Campus not found.");
+    if (organization.code === code) return { organization };
+
+    await this.assertCodeAvailable(code);
+
+    let updated;
+    try {
+      updated = await this.db.organization.update({
+        where: { id: organizationId },
+        data: { code },
+        select: { id: true, name: true, slug: true, code: true },
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new ConflictException("That campus code is already taken. Try another.");
+      throw error;
+    }
+
+    await this.auditSink.platform({
+      userId,
+      memberId,
+      action: "ORGANIZATION_UPDATED",
+      entityType: "ORGANIZATION",
+      entityId: organizationId,
+      details: `Campus code changed from "${organization.code}" to "${code}"`,
+      organizationId,
+    });
+
+    return { organization: updated };
   }
 
   

@@ -43,7 +43,7 @@ export class UserReportingService {
           matricNo: true,
           isActive: true,
           createdAt: true,
-          memberships: { where: { organizationId: scopedOrganizationId(organizationId) }, select: { id: true, role: true }, take: 1 },
+          memberships: { where: { organizationId: scopedOrganizationId(organizationId) }, select: { id: true, role: true, name: true }, take: 1 },
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -74,6 +74,7 @@ export class UserReportingService {
       const memberId = member?.id;
       return {
         ...u,
+        name: member?.name ?? u.name,
         role: member?.role ?? null,
         _count: {
           requests: (memberId && requestsByMember.get(memberId)) || 0,
