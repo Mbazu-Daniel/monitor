@@ -6,17 +6,16 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft, ArrowRight, Zap, Droplets, Armchair, Wifi, Monitor, Building2, HardHat, SprayCan,
-  CheckIcon as Check, CheckCircle2, Loader2, Eye, EyeOff, ClipboardList, ShieldCheck, BellRing, Plus, X,
+  CheckIcon as Check, Loader2, Eye, EyeOff, ClipboardList, ShieldCheck, BellRing, Plus, X,
 } from "@/components/icons";
 import { api, ApiError } from "@/lib/client";
 import { useAppStore } from "@/stores/app-store";
 import { campusCodeFromName } from "@mivacampus/contracts";
 import { validateOnboardingStep, type OnboardingForm } from "@/lib/onboarding";
-import { useCopied } from "@/hooks/use-copied";
 import type { SessionUser } from "@/types";
 
 const STEPS = ["Your campus", "Admin account", "Starting categories", "Review & create"] as const;
-const SIGNED_IN_STEPS = ["Your campus", "Starting categories", "Review & create"] as const;
+const SIGNED_IN_STEPS = ["Your campus", "Administrator name", "Starting categories", "Review & create"] as const;
 
 const PRESETS = [
   { name: "Electrical Fault", description: "Power outages, faulty sockets, lighting, wiring issues.", icon: Zap, iconName: "Zap" },
@@ -45,12 +44,12 @@ function RailStep({ n, label, state }: { n: number; label: string; state: "done"
   );
 }
 
-function StepsRail({ step, done, steps }: { step: number; done: boolean; steps: readonly string[] }) {
+function StepsRail({ step, steps }: { step: number; steps: readonly string[] }) {
   return (
     <ol className="mt-8 grid gap-2 sm:grid-cols-2 lg:mt-12 lg:grid-cols-1 lg:gap-4">
       {steps.map((label, i) => {
         const n = i + 1;
-        const state = done || n < step ? "done" : n === step ? "current" : "upcoming";
+        const state = n < step ? "done" : n === step ? "current" : "upcoming";
         return <RailStep key={label} n={n} label={label} state={state} />;
       })}
     </ol>
@@ -66,71 +65,7 @@ function LoadingScreen() {
   );
 }
 
-function AuthedScreen({ me, onContinue, onSignOut }: { me: SessionUser; onContinue: () => void; onSignOut: () => void }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-10">
-      <ShieldCheck className="mx-auto h-10 w-10 text-foreground" />
-      <h2 className="mt-4 text-xl font-semibold">You're already signed in</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Onboarding creates a brand-new campus. Sign in as <span className="font-medium text-foreground">{me.name}</span>, or sign out first if you're setting up a different campus.
-      </p>
-      <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
-        <Button onClick={onContinue}>Open your dashboard <ArrowRight className="ml-2 h-4 w-4" /></Button>
-        <Button variant="outline" onClick={onSignOut}>Sign out & start fresh</Button>
-      </div>
-    </div>
-  );
-}
-
-function DoneScreen({ done, copied, onCopy, onContinue }: {
-  done: { subdomain: string; code: string; orgName: string };
-  copied: "subdomain" | "code" | null;
-  onCopy: (value: string, kind: "subdomain" | "code") => void;
-  onContinue: () => void;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-6 sm:p-10">
-      <CheckCircle2 className="h-12 w-12 text-foreground" />
-      <h2 className="mt-4 text-2xl font-semibold">{done.orgName} is live</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Your campus workspace is ready. Staff join with the campus code — they'll enter it when they create their accounts.
-      </p>
-      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
-          <p className="text-xs font-semibold text-muted-foreground">Subdomain</p>
-          <p className="mt-1 break-all text-lg font-bold tabular-nums">{done.subdomain}</p>
-          <Button variant="outline" size="sm" className="mt-3 h-8 text-xs" onClick={() => onCopy(done.subdomain, "subdomain")}>
-            {copied === "subdomain" ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy"}
-          </Button>
-        </div>
-        <div className="rounded-2xl border-2 border-dashed border-foreground/30 bg-secondary/60 p-4 text-center">
-          <p className="text-xs font-semibold text-muted-foreground">Campus code</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums tracking-[0.08em]">{done.code}</p>
-          <Button variant="outline" size="sm" className="mt-3 h-8 text-xs" onClick={() => onCopy(done.code, "code")}>
-            {copied === "code" ? <><Check className="mr-2 h-4 w-4" /> Copied</> : "Copy code"}
-          </Button>
-        </div>
-      </div>
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">{done.orgName}</span>{" · "}
-        <span className="tabular-nums">{done.code}</span>{" · "}
-        <span className="font-mono">{done.subdomain}</span>
-        <br />
-        Staff and student numbers start with the code — e.g. {done.code}/0001.
-      </p>
-      <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
-        <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> You're signed in as the first <span className="font-medium text-foreground">&nbsp;administrator</span>.</li>
-        <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> Staff who sign up with this code join your campus automatically.</li>
-        <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> You can create officer accounts and manage users from Manage Users. Categories live on the Categories page.</li>
-      </ul>
-      <Button className="mt-6 w-full" size="lg" onClick={onContinue}>
-        Open your dashboard <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
-    </div>
-  );
-}
-
-function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, onCodeChange, signedInName }: {
+function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, onCodeChange }: {
   form: OnboardingForm;
   subdomain: string;
   code: string;
@@ -138,36 +73,36 @@ function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, o
   onSet: (k: keyof OnboardingForm, v: string) => void;
   onSubdomainChange: (v: string) => void;
   onCodeChange: (v: string) => void;
-  signedInName?: string | null;
 }) {
   return (
     <div>
-      <h2 className="text-xl font-semibold">Name your campus</h2>
-      <p className="mt-1 text-sm text-muted-foreground">This is the university or campus whose faults you'll be tracking.</p>
-      {signedInName ? (
-        <p className="mt-3 rounded-xl border border-border bg-secondary/50 p-3 text-[13px] leading-snug text-muted-foreground">
-          You're signed in as <span className="font-medium text-foreground">{signedInName}</span> — we use the name part of your sign-in email since the account was created without a name. The campus is created under this account and you become its first administrator. Invited to an existing campus instead? Open the link from your email.
-        </p>
-      ) : null}
-      <div className="mt-5 space-y-1.5">
+      <div className="space-y-1.5">
         <Label htmlFor="ob-org">Campus or university name</Label>
-        <Input id="ob-org" placeholder="e.g. Example University" value={form.organizationName} onChange={(e) => onSet("organizationName", e.target.value)} autoFocus />
+        <Input id="ob-org" value={form.organizationName} onChange={(e) => onSet("organizationName", e.target.value)} autoFocus />
         {errors.organizationName && <p className="text-xs text-destructive">{errors.organizationName}</p>}
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="ob-subdomain">Subdomain</Label>
-          <Input id="ob-subdomain" placeholder="e.g. example-university" value={subdomain} onChange={(e) => onSubdomainChange(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" aria-describedby="ob-subdomain-hint" />
+          <Input id="ob-subdomain" value={subdomain} onChange={(e) => onSubdomainChange(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" />
           {errors.subdomain && <p className="text-xs text-destructive">{errors.subdomain}</p>}
-          <p id="ob-subdomain-hint" className="text-[11px] text-muted-foreground">The campus link: <span className="font-mono">/{subdomain || "example-university"}</span> — lowercase letters, numbers and dashes only.</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ob-code">Campus code</Label>
-          <Input id="ob-code" placeholder="e.g. EU" value={code} onChange={(e) => onCodeChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={10} className="font-mono uppercase" />
+          <Input id="ob-code" value={code} onChange={(e) => onCodeChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={10} className="font-mono uppercase" />
           {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
-          <p className="text-[11px] text-muted-foreground">Letters and numbers only, up to 10 characters. Staff and student numbers start with the code — e.g. {code || "EU"}/0001.</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AdminNameStep({ value, error, onChange }: { value: string; error?: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="ob-admin-name">Administrator name</Label>
+      <Input id="ob-admin-name" value={value} onChange={(e) => onChange(e.target.value)} autoFocus />
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -288,12 +223,11 @@ function CategoriesStep({ selected, customs, customName, errors, onTogglePreset,
   );
 }
 
-function ReviewStep({ form, subdomain, code, categories, administrator }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[]; administrator: { name: string; email: string } | null }) {
-  const admin = administrator ?? { name: form.adminName.trim(), email: form.adminEmail.trim() };
+function ReviewStep({ form, subdomain, code, categories, adminEmail }: { form: OnboardingForm; subdomain: string; code: string; categories: { name: string; description: string; icon: string }[]; adminEmail: string }) {
+  const admin = { name: form.adminName.trim(), email: adminEmail };
   return (
     <div>
       <h2 className="text-xl font-semibold">Review & create</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{administrator ? "Everything lands together: one campus, you as its first administrator, your chosen categories." : "Everything lands together: one campus, one admin, your chosen categories."}</p>
       <dl className="mt-5 divide-y divide-border rounded-2xl border border-border">
         <div className="flex items-start justify-between gap-4 p-4">
           <dt className="text-sm font-medium text-muted-foreground">Campus</dt>
@@ -324,7 +258,7 @@ function ReviewStep({ form, subdomain, code, categories, administrator }: { form
   );
 }
 
-function BrandRail({ step, done, steps }: { step: number; done: boolean; steps: readonly string[] }) {
+function BrandRail({ step, steps }: { step: number; steps: readonly string[] }) {
   return (
     <div className="relative flex flex-col justify-between overflow-hidden bg-[#2f2f30] px-6 py-8 text-[#fdfaf6] lg:w-[42%] lg:px-12 lg:py-14">
       <div className="relative">
@@ -346,7 +280,7 @@ function BrandRail({ step, done, steps }: { step: number; done: boolean; steps: 
           </p>
         </div>
 
-        <StepsRail step={step} done={done} steps={steps} />
+        <StepsRail step={step} steps={steps} />
       </div>
 
       <div className="relative mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[#fdfaf6]/65 lg:mt-10">
@@ -399,23 +333,6 @@ function FormCard({ serverError, step, totalSteps, stepNode, loading, onContinue
   );
 }
 
-function SessionGate({ session, me, done, copied, onCopy, onAuthedContinue, onDoneContinue, onSignOut, children }: {
-  session: "loading" | "guest" | "authed";
-  me: SessionUser | null;
-  done: { subdomain: string; code: string; orgName: string } | null;
-  copied: "subdomain" | "code" | null;
-  onCopy: (value: string, kind: "subdomain" | "code") => void;
-  onAuthedContinue: () => void;
-  onDoneContinue: () => void;
-  onSignOut: () => void;
-  children: React.ReactNode;
-}) {
-  if (session === "loading") return <LoadingScreen />;
-  if (session === "authed" && me?.organizationSlug) return <AuthedScreen me={me} onContinue={onAuthedContinue} onSignOut={onSignOut} />;
-  if (done) return <DoneScreen done={done} copied={copied} onCopy={onCopy} onContinue={onDoneContinue} />;
-  return <>{children}</>;
-}
-
 function useOnboardingSession() {
   const setUser = useAppStore((s) => s.setUser);
   const setAuthChecked = useAppStore((s) => s.setAuthChecked);
@@ -455,6 +372,7 @@ async function createCampus({ form, subdomain, code, categories, skipAdminSignup
       name: form.organizationName.trim(),
       slug: subdomain,
       code,
+      adminName: form.adminName.trim(),
       categories,
       ...(form.adminDepartment.trim() ? { department: form.adminDepartment.trim() } : {}),
     }),
@@ -464,7 +382,8 @@ async function createCampus({ form, subdomain, code, categories, skipAdminSignup
 export function OnboardingPage() {
   const navigate = useNavigate();
   const { session, me, setUser, setAuthChecked } = useOnboardingSession();
-  const signedIn = session === "authed" && me && !me.organizationSlug ? me : null;
+  const signedIn = session === "authed" && me ? me : null;
+  const signedInName = signedIn?.name?.trim() ? signedIn.name : null;
   const steps = signedIn ? SIGNED_IN_STEPS : STEPS;
   const totalSteps = steps.length;
 
@@ -479,12 +398,15 @@ export function OnboardingPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState<{ subdomain: string; code: string; orgName: string } | null>(null);
-  const { copied, copy } = useCopied<"subdomain" | "code">();
 
   const set = (k: keyof OnboardingForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const subdomain = subdomainTouched ? form.subdomain : slugify(form.organizationName);
   const code = codeTouched ? form.code : campusCodeFromName(form.organizationName);
+
+  useEffect(() => {
+    if (!signedInName) return;
+    setForm((f) => (f.adminName.trim() ? f : { ...f, adminName: signedInName }));
+  }, [signedInName]);
 
   const categoryPayload = useMemo(
     () => [
@@ -526,11 +448,12 @@ export function OnboardingPage() {
     setServerError(null);
     setLoading(true);
     try {
-      const res = await createCampus({ form, subdomain, code, categories: categoryPayload, skipAdminSignup: !!signedIn });
+      const created = await createCampus({ form, subdomain, code, categories: categoryPayload, skipAdminSignup: !!signedIn });
       const sessionUser = await api<{ user: SessionUser }>("/api/me");
       setUser(sessionUser.user);
       setAuthChecked(true);
-      setDone({ subdomain: res.slug, code: res.code.toUpperCase(), orgName: res.name });
+      const slug = sessionUser.user.organizationSlug ?? created.slug;
+      navigate({ to: "/$orgSlug", params: { orgSlug: slug }, replace: true });
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Unable to create your campus right now.");
     } finally {
@@ -538,17 +461,9 @@ export function OnboardingPage() {
     }
   }
 
-  async function signOutAndReset() {
-    try {
-      await api("/api/auth/sign-out", { method: "POST" });
-    } finally {
-      window.location.reload();
-    }
-  }
-
   const onSubdomainChange = (v: string) => { setSubdomainTouched(true); set("subdomain", v.toLowerCase().replace(/[^a-z0-9-]/g, "")); };
   const onCodeChange = (v: string) => { setCodeTouched(true); set("code", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10)); };
-  const administrator = signedIn ? { name: signedIn.name, email: signedIn.email } : null;
+  const adminEmail = signedIn?.email ?? form.adminEmail.trim();
   const categoriesStep = (
     <CategoriesStep
       selected={selected}
@@ -564,31 +479,28 @@ export function OnboardingPage() {
   );
   const stepNode =
     step === 1 ? (
-      <CampusStep form={form} subdomain={subdomain} code={code} errors={errors} onSet={set} onSubdomainChange={onSubdomainChange} onCodeChange={onCodeChange} signedInName={signedIn?.name ?? null} />
+      <CampusStep form={form} subdomain={subdomain} code={code} errors={errors} onSet={set} onSubdomainChange={onSubdomainChange} onCodeChange={onCodeChange} />
     ) : step === 2 ? (
-      signedIn ? categoriesStep : <AdminStep form={form} errors={errors} showPwd={showPwd} onTogglePwd={() => setShowPwd((v) => !v)} onSet={set} />
+      signedIn ? (
+        <AdminNameStep value={form.adminName} error={errors.adminName} onChange={(v) => set("adminName", v)} />
+      ) : (
+        <AdminStep form={form} errors={errors} showPwd={showPwd} onTogglePwd={() => setShowPwd((v) => !v)} onSet={set} />
+      )
     ) : step === 3 ? (
-      signedIn ? <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} administrator={administrator} /> : categoriesStep
+      categoriesStep
     ) : (
-      <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} administrator={administrator} />
+      <ReviewStep form={form} subdomain={subdomain} code={code} categories={categoryPayload} adminEmail={adminEmail} />
     );
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <BrandRail step={step} done={!!done} steps={steps} />
+      <BrandRail step={step} steps={steps} />
 
       <div className="flex flex-1 items-center justify-center bg-muted/40 px-4 py-10 sm:px-8">
         <div className="w-full max-w-lg">
-          <SessionGate
-            session={session}
-            me={me}
-            done={done}
-            copied={copied}
-            onCopy={copy}
-            onAuthedContinue={() => navigate({ to: "/" })}
-            onDoneContinue={() => navigate({ to: "/" })}
-            onSignOut={signOutAndReset}
-          >
+          {session === "loading" ? (
+            <LoadingScreen />
+          ) : (
             <FormCard
               serverError={serverError}
               step={step}
@@ -600,7 +512,7 @@ export function OnboardingPage() {
               onCreate={create}
               onHome={() => navigate({ to: "/" })}
             />
-          </SessionGate>
+          )}
         </div>
       </div>
     </div>

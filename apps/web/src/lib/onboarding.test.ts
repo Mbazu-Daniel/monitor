@@ -40,6 +40,16 @@ describe("validateOnboardingStep", () => {
     expect(validateOnboardingStep(2, { ...valid, adminEmail: "nope" }, "miva-open-university", "MOU", 1)).toEqual({ adminEmail: expect.any(String) });
   });
 
+  it("validates the signed-in administrator name step", () => {
+    expect(validateOnboardingStep(2, { ...valid, adminName: "" }, "miva-open-university", "MOU", 1, true)).toEqual({ adminName: expect.any(String) });
+    expect(validateOnboardingStep(2, valid, "miva-open-university", "MOU", 1, true)).toEqual({});
+  });
+
+  it("requires categories at step 3 for signed-in users", () => {
+    expect(validateOnboardingStep(3, valid, "miva-open-university", "MOU", 0, true)).toEqual({ categories: expect.any(String) });
+    expect(validateOnboardingStep(3, valid, "miva-open-university", "MOU", 2, true)).toEqual({});
+  });
+
   it("requires at least one category", () => {
     expect(validateOnboardingStep(3, valid, "miva-open-university", "MOU", 0)).toEqual({ categories: expect.any(String) });
     expect(validateOnboardingStep(3, valid, "miva-open-university", "MOU", 2)).toEqual({});

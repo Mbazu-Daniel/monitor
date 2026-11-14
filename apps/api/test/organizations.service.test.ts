@@ -3,6 +3,14 @@ import type { PrismaClient } from "../src/generated/prisma/client.ts";
 import { OrganizationsService } from "../src/organizations/organizations.service.ts";
 import { AuditSink } from "../src/common/audit/audit.ts";
 
+const { createOrganization } = vi.hoisted(() => ({
+  createOrganization: vi.fn(async () => ({ id: "org-new", name: "Lagos Polytechnic", slug: "lagos-poly", code: "LPOLY" })),
+}));
+
+vi.mock("../src/common/config/better-auth.config.ts", () => ({
+  auth: { api: { createOrganization } },
+}));
+
 function makeFakes() {
   const current = { id: "org-1", name: "MIVA Open University", slug: "miva-open-university", code: "MOU" };
   const db = {
@@ -19,6 +27,78 @@ function makeFakes() {
   const service = new OrganizationsService(db as unknown as PrismaClient, auditSink as unknown as AuditSink);
   return { service, db, auditSink };
 }
+
+describe("listMine", () => {
+  it("returns only the campuses the requesting user belongs to", async () => {
+    const findMany = vi.fn(async () => [
+      { role: "ADMIN", organization: { id: "org-1", name: "MIVA Open University", slug: "miva-open-university", code: "MOU" } },
+      { role: "STAFF", organization: { id: "org-2", name: "Lagos Polytechnic", slug: "lagos-poly", code: "LPOLY" } },
+    ]);
+    const db = { member: { findMany } };
+    const auditSink = { platform: vi.fn(async () => {}), inTx: vi.fn(async () => {}) };
+    const service = new OrganizationsService(db as unknown as PrismaClient, auditSink as unknown as AuditSink);
+
+    const result = await service.listMine("user-1");
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: "user-1" } }));
+    expect(result.organizations).toEqual([
+      { id: "org-1", name: "MIVA Open University", slug: "miva-open-university", code: "MOU", role: "ADMIN" },
+      { id: "org-2", name: "Lagos Polytechnic", slug: "lagos-poly", code: "LPOLY", role: "STAFF" },
+    ]);
+  });
+});
+
+describe("create", () => {
+  function makeCreateFakes() {
+    const db = {
+      organization: {
+        findUnique: vi.fn(async () => null),
+      },
+      member: {
+        findFirst: vi.fn(async (_args?: { where?: Record<string, unknown> }) => ({ id: "member-new" })),
+        update: vi.fn(async () => ({})),
+      },
+      category: {
+        findFirst: vi.fn(async () => ({ id: "cat-1", name: "Electrical Fault" })),
+        create: vi.fn(async () => ({ id: "cat-1" })),
+      },
+    };
+    const auditSink = { platform: vi.fn(async () => {}), inTx: vi.fn(async () => {}) };
+    const service = new OrganizationsService(db as unknown as PrismaClient, auditSink as unknown as AuditSink);
+    return { service, db, auditSink };
+  }
+
+  const dto = {
+    name: "Lagos Polytechnic",
+    slug: "lagos-poly",
+    code: "LPOLY",
+    adminName: "Ada Obi",
+    department: "",
+    categories: [{ name: "Electrical Fault", description: "Power outages", icon: "Zap" }],
+  };
+
+  it("creates a campus for a user who already belongs to one", async () => {
+    const { service, db } = makeCreateFakes();
+    const result = await service.create("user-1", dto, "session-cookie");
+
+    expect(createOrganization).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { name: "Lagos Polytechnic", slug: "lagos-poly", code: "LPOLY" } }),
+    );
+    expect(result.id).toBe("org-new");
+    const membershipPreChecks = db.member.findFirst.mock.calls.filter(([args]) => args?.where?.userId && !args.where.organizationId);
+    expect(membershipPreChecks).toHaveLength(0);
+  });
+
+  it("records the administrator name on the new membership", async () => {
+    const { service, db } = makeCreateFakes();
+    await service.create("user-1", dto);
+
+    expect(db.member.update).toHaveBeenCalledWith({
+      where: { organizationId_userId: { organizationId: "org-new", userId: "user-1" } },
+      data: { name: "Ada Obi" },
+    });
+  });
+});
 
 describe("updateCode", () => {
   it("updates the campus code and audits the change", async () => {

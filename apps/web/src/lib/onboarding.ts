@@ -18,6 +18,12 @@ function validateCampusStep(form: OnboardingForm, subdomain: string, code: strin
   return e;
 }
 
+function validateAdminNameStep(form: OnboardingForm) {
+  const e: Record<string, string> = {};
+  if (form.adminName.trim().length < 2) e.adminName = "Please enter the administrator's name.";
+  return e;
+}
+
 function validateAdminStep(form: OnboardingForm) {
   const e: Record<string, string> = {};
   if (form.adminName.trim().length < 2) e.adminName = "Please enter your full name.";
@@ -26,10 +32,18 @@ function validateAdminStep(form: OnboardingForm) {
   return e;
 }
 
+function validateCategoriesStep(categoryCount: number): Record<string, string> {
+  return categoryCount === 0 ? { categories: "Pick at least one starting category." } : {};
+}
+
 export function validateOnboardingStep(current: number, form: OnboardingForm, subdomain: string, code: string, categoryCount: number, signedIn = false): Record<string, string> {
   if (current === 1) return validateCampusStep(form, subdomain, code);
-  if (signedIn) return categoryCount === 0 ? { categories: "Pick at least one starting category." } : {};
+  if (signedIn) {
+    if (current === 2) return validateAdminNameStep(form);
+    if (current === 3) return validateCategoriesStep(categoryCount);
+    return {};
+  }
   if (current === 2) return validateAdminStep(form);
-  if (current === 3) return categoryCount === 0 ? { categories: "Pick at least one starting category." } : {};
+  if (current === 3) return validateCategoriesStep(categoryCount);
   return {};
 }

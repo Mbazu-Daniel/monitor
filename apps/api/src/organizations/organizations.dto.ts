@@ -21,6 +21,7 @@ export const CreateOrganizationDto = z.object({
   name: z.string().trim().min(2).max(120),
   slug: Subdomain.optional(),
   code: CampusCode.optional(),
+  adminName: z.string().trim().min(2, "Enter the administrator's name").max(100).optional().or(z.literal("")),
   department: z.string().trim().max(120).optional().or(z.literal("")),
   categories: startingCategoriesSchema,
 });
