@@ -182,6 +182,9 @@ model ServiceRequest {
 
   @@unique([organizationId, reference])
   @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, creatorId])
   @@map("service_request")
 }
 
@@ -299,4 +302,36 @@ model AuditLog {
   @@index([organizationId])
   @@index([memberId])
   @@map("audit_log")
+}
+
+model IdempotencyKey {
+  id          String   @id @default(cuid())
+  scope       String
+  key         String
+  requestHash String?
+  status      String   @default("IN_PROGRESS")
+  statusCode  Int?
+  response    String?
+  createdAt   DateTime @default(now())
+
+  @@unique([scope, key])
+  @@index([createdAt])
+  @@map("idempotency_key")
+}
+
+model NotificationOutbox {
+  id             String    @id @default(cuid())
+  organizationId String?
+  title          String
+  message        String
+  type           String    @default("INFO")
+  requestId      String?
+  payload        Json
+  attempts       Int       @default(0)
+  claimedAt      DateTime?
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([publishedAt, createdAt])
+  @@map("notification_outbox")
 }
