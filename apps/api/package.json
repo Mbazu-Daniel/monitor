@@ -14,7 +14,7 @@
     "start": "nest start",
     "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node --import ./scripts/instrument.mjs dist/main",
     "lint": "oxlint src/",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
