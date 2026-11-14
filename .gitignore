@@ -64,3 +64,6 @@ docs/
 # Skills directory
 /skills/
 !.env.example
+
+# local Soonwhy probe (diagnostic, not for the repo)
+apps/api/scripts/soonwhy-probe.mjs
