@@ -1,5 +1,3 @@
-import axios from "axios";
-
 const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "").replace(/\/api\/v1$/, "");
 
 export function apiUrl(path: string): string {
@@ -14,27 +12,41 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function readErrorBody(response: Response): Promise<{ message?: string | string[]; error?: string } | undefined> {
   try {
-    const response = await axios.request<T>({
-      url: apiUrl(path),
+    return (await response.json()) as { message?: string | string[]; error?: string };
+  } catch {
+    return undefined;
+  }
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      ...options,
       method: options.method ?? "GET",
-      data: options.body,
-      withCredentials: true,
+      body: options.body ?? null,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(options.headers as Record<string, string> | undefined),
       },
     });
-    return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const body = error.response?.data as { message?: string | string[]; error?: string } | undefined;
-      const message = Array.isArray(body?.message) ? body.message.join(", ") : (body?.message ?? body?.error ?? error.message);
-      throw new ApiError(message, error.response?.status ?? 500);
+    if (error instanceof TypeError) {
+      throw new ApiError("Network error. Check your connection and try again.", 0);
     }
     throw error;
   }
+  if (!response.ok) {
+    const body = await readErrorBody(response);
+    const raw = Array.isArray(body?.message) ? body.message.join(", ") : (body?.message ?? body?.error);
+    throw new ApiError(raw ?? `Request failed with status ${response.status}`, response.status);
+  }
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export function qs(params: Record<string, string | number | undefined | null>) {
@@ -47,6 +59,9 @@ export function qs(params: Record<string, string | number | undefined | null>) {
 }
 
 export async function download(path: string) {
-  const response = await axios.get<Blob>(apiUrl(path), { responseType: "blob", withCredentials: true });
-  return response.data;
+  const response = await fetch(apiUrl(path), { credentials: "include" });
+  if (!response.ok) {
+    throw new ApiError(`Download failed with status ${response.status}`, response.status);
+  }
+  return response.blob();
 }
