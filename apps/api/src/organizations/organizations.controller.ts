@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Post, Query, Req, BadRequestException, HttpCode } from "@nestjs/common";
+import { Body, Controller, Get, Post, Patch, Query, Req, BadRequestException, HttpCode } from "@nestjs/common";
 import type { NodeRequest as Request } from "@nestjs/platform-node";
 import { Public } from "../common/decorators/public.decorator.ts";
-import { CurrentUser } from "../common/decorators/current-tenant.decorator.ts";
+import { CurrentUser, CurrentTenant } from "../common/decorators/current-tenant.decorator.ts";
+import { RequirePermission } from "../common/decorators/permissions.decorator.ts";
+import type { TenantContext } from "../common/guards/session.types.ts";
 import { OrganizationsService } from "./organizations.service.ts";
-import { CreateOrganizationDto, JoinOrganizationDto } from "./organizations.dto.ts";
+import { CreateOrganizationDto, JoinOrganizationDto, UpdateOrganizationCodeDto } from "./organizations.dto.ts";
 
 @Controller("organizations")
 export class OrganizationsController {
@@ -38,5 +40,16 @@ export class OrganizationsController {
   @HttpCode(201)
   join(@CurrentUser() user: { id: string }, @Body({ schema: JoinOrganizationDto }) dto: JoinOrganizationDto) {
     return this.orgs.join(user.id, dto);
+  }
+
+  @RequirePermission("organization", "update")
+  @Patch("code")
+  @HttpCode(200)
+  updateCode(
+    @Body({ schema: UpdateOrganizationCodeDto }) dto: UpdateOrganizationCodeDto,
+    @CurrentUser() user: { id: string },
+    @CurrentTenant() tenant: TenantContext | undefined,
+  ) {
+    return this.orgs.updateCode(tenant?.organizationId ?? null, user.id, dto.code, tenant?.memberId ?? null);
   }
 }

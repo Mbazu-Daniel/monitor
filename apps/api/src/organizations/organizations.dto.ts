@@ -32,3 +32,8 @@ export const JoinOrganizationDto = z.object({
   phone: z.string().trim().max(30).optional().or(z.literal("")),
 });
 export type JoinOrganizationDto = z.infer<typeof JoinOrganizationDto>;
+
+export const UpdateOrganizationCodeDto = z.object({
+  code: CampusCode,
+});
+export type UpdateOrganizationCodeDto = z.infer<typeof UpdateOrganizationCodeDto>;

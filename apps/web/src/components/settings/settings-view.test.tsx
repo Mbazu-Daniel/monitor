@@ -45,8 +45,22 @@ describe("SettingsView", () => {
     render(<SettingsView />);
     fireEvent.click(screen.getByRole("tab", { name: "Campus" }));
     expect(screen.getByRole("tab", { name: "Campus" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel", { hidden: false })).toHaveTextContent("miva-open-university");
     expect(screen.getByRole("tabpanel", { hidden: false })).toHaveTextContent("MIVA Open University");
+    expect(screen.getByRole("tabpanel", { hidden: false })).toHaveTextContent("MOU");
+    expect(screen.getByRole("tabpanel", { hidden: false })).not.toHaveTextContent("miva-open-university");
     expect(screen.getAllByRole("button", { name: "Copy campus code" }).length).toBeGreaterThan(0);
+  });
+
+  it("lets an admin edit the campus code", async () => {
+    useAppStore.setState({ user: makeUserSession("ADMIN") });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole("tab", { name: "Campus" }));
+    fireEvent.click(screen.getByRole("button", { name: /edit code/i }));
+    const input = screen.getByLabelText("New campus code");
+    fireEvent.change(input, { target: { value: "ebsu1" } });
+    expect(input).toHaveValue("EBSU1");
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    const { api } = await import("@/lib/client");
+    expect(api).toHaveBeenCalledWith("/api/organizations/code", expect.objectContaining({ method: "PATCH" }));
   });
 });

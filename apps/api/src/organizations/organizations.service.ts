@@ -128,13 +128,49 @@ export class OrganizationsService {
       throw new ConflictException("Unable to create the campus right now. Please try again.");
     }
 
-
     const categories = await this.provisionCategories(organization.id, dto.categories);
 
     const creatorMemberId = await this.creatorMemberId(organization.id, userId);
     await this.auditSink.platform({ userId, memberId: creatorMemberId, action: "ORGANIZATION_CREATED", entityType: "ORGANIZATION", entityId: organization.id, details: `Campus "${organization.name}" created with ${categories.length} starter categories`, organizationId: organization.id });
 
     return organization;
+  }
+
+  
+  async updateCode(organizationId: string | null, userId: string, code: string, memberId: string | null) {
+    if (!organizationId) throw new NotFoundException("You do not belong to a campus.");
+    const organization = await this.db.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true, slug: true, code: true },
+    });
+    if (!organization) throw new NotFoundException("Campus not found.");
+    if (organization.code === code) return { organization };
+
+    await this.assertCodeAvailable(code);
+
+    let updated;
+    try {
+      updated = await this.db.organization.update({
+        where: { id: organizationId },
+        data: { code },
+        select: { id: true, name: true, slug: true, code: true },
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new ConflictException("That campus code is already taken. Try another.");
+      throw error;
+    }
+
+    await this.auditSink.platform({
+      userId,
+      memberId,
+      action: "ORGANIZATION_UPDATED",
+      entityType: "ORGANIZATION",
+      entityId: organizationId,
+      details: `Campus code changed from "${organization.code}" to "${code}"`,
+      organizationId,
+    });
+
+    return { organization: updated };
   }
 
   
