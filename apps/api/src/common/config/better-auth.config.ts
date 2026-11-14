@@ -73,6 +73,7 @@ export const auth = betterAuth({
   plugins: [
     organization({
       creatorRole: "ADMIN",
+      organizationLimit: 10,
       requireEmailVerificationOnInvitation: false,
       teams: undefined,
       schema: {

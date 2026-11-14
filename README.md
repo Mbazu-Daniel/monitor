@@ -311,7 +311,7 @@ All API routes are mounted under `/api/v1`. Authentication uses `better-auth` se
 **Errors**:
 - 400: Invalid payload
 - 401: Not authenticated
-- 409: That subdomain or campus code is already taken
+- 409: That subdomain or campus code is already taken, or the account already belongs to the maximum number of campuses (10)
 
 #### POST /api/v1/organizations/join
 

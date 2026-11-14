@@ -123,6 +123,12 @@ export class OrganizationsService {
       if (errorCode === "ORGANIZATION_ALREADY_EXISTS" || errorCode === "ORGANIZATION_SLUG_ALREADY_TAKEN") {
         throw new ConflictException("That subdomain is already taken. Try another.");
       }
+      if (errorCode === "YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS") {
+        throw new ConflictException("You already belong to the maximum number of campuses.");
+      }
+      if (errorCode === "YOU_ARE_NOT_ALLOWED_TO_CREATE_A_NEW_ORGANIZATION") {
+        throw new ConflictException("You are not allowed to create a campus.");
+      }
       if (isUniqueViolation(error)) throw new ConflictException("That subdomain or campus code was just taken. Try another.");
       throw error;
     }

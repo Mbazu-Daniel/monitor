@@ -98,6 +98,20 @@ describe("create", () => {
       data: { name: "Ada Obi" },
     });
   });
+
+  it("maps the maximum-organizations error from better-auth to a friendly conflict", async () => {
+    createOrganization.mockRejectedValueOnce({ body: { code: "YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS" } });
+    const { service } = makeCreateFakes();
+
+    await expect(service.create("user-1", dto)).rejects.toThrow("You already belong to the maximum number of campuses");
+  });
+
+  it("maps the slug-taken error from better-auth to a friendly conflict", async () => {
+    createOrganization.mockRejectedValueOnce({ body: { code: "ORGANIZATION_ALREADY_EXISTS" } });
+    const { service } = makeCreateFakes();
+
+    await expect(service.create("user-1", dto)).rejects.toThrow("That subdomain is already taken");
+  });
 });
 
 describe("updateCode", () => {

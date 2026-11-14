@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Patch, Query, Req, BadRequestException, HttpCode } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { NodeRequest as Request } from "@nestjs/platform-node";
 import { Public } from "../common/decorators/public.decorator.ts";
 import { CurrentUser, CurrentTenant } from "../common/decorators/current-tenant.decorator.ts";
@@ -27,6 +28,7 @@ export class OrganizationsController {
   
   @Post()
   @HttpCode(201)
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } })
   create(
     @CurrentUser() user: { id: string },
     @Body({ schema: CreateOrganizationDto }) dto: CreateOrganizationDto,
