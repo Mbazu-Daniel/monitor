@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, api, qs } from "./client";
 
-const { request, isAxiosError } = vi.hoisted(() => ({
-  request: vi.fn(),
-  isAxiosError: vi.fn(),
-}));
+const fetchMock = vi.fn();
+vi.stubGlobal("fetch", fetchMock);
 
-vi.mock("axios", () => ({
-  default: { request, isAxiosError, get: vi.fn() },
-}));
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(body === undefined ? null : JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -30,51 +31,51 @@ describe("qs", () => {
 
 describe("api", () => {
   it("returns the response data", async () => {
-    request.mockResolvedValue({ data: { ok: true } });
+    fetchMock.mockResolvedValue(jsonResponse(200, { ok: true }));
     await expect(api("/api/health")).resolves.toEqual({ ok: true });
-    expect(request).toHaveBeenCalledWith(
-      expect.objectContaining({ url: "/api/health", method: "GET", withCredentials: true }),
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/health",
+      expect.objectContaining({ method: "GET", credentials: "include" }),
     );
   });
 
   it("posts JSON with an application/json content type", async () => {
-    request.mockResolvedValue({ data: {} });
+    fetchMock.mockResolvedValue(jsonResponse(200, {}));
     await api("/api/requests", { method: "POST", body: JSON.stringify({ title: "x" }) });
-    expect(request).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/requests",
       expect.objectContaining({
         headers: expect.objectContaining({ "Content-Type": "application/json" }),
       }),
     );
   });
 
-  it("maps axios errors with joined field messages to ApiError", async () => {
-    isAxiosError.mockReturnValue(true);
-    request.mockRejectedValue({
-      response: { status: 400, data: { message: ["Title too short", "Location required"] } },
-    });
-    await expect(api("/api/requests", { method: "POST" })).rejects.toBeInstanceOf(ApiError);
+  it("maps error responses with joined field messages to ApiError", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(400, { message: ["Title too short", "Location required"] }));
     await expect(api("/api/requests", { method: "POST" })).rejects.toMatchObject({
       message: "Title too short, Location required",
       status: 400,
     });
   });
 
-  it("maps axios errors with a string error field to ApiError", async () => {
-    isAxiosError.mockReturnValue(true);
-    request.mockRejectedValue({ response: { status: 403, data: { error: "Forbidden" } } });
+  it("maps error responses with a string error field to ApiError", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(403, { error: "Forbidden" }));
     await expect(api("/api/users")).rejects.toMatchObject({ message: "Forbidden", status: 403 });
   });
 
-  it("maps axios errors without a response body to ApiError", async () => {
-    isAxiosError.mockReturnValue(true);
-    request.mockRejectedValue(new Error("Network Error"));
+  it("maps error responses without a JSON body to ApiError", async () => {
+    fetchMock.mockResolvedValue(new Response("upstream broke", { status: 502 }));
+    await expect(api("/api/health")).rejects.toMatchObject({ status: 502 });
+  });
+
+  it("maps network failures to ApiError", async () => {
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    await expect(api("/api/health")).rejects.toMatchObject({ status: 0 });
     await expect(api("/api/health")).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("rethrows non-axios errors untouched", async () => {
-    isAxiosError.mockReturnValue(false);
-    const boom = new Error("boom");
-    request.mockRejectedValue(boom);
-    await expect(api("/api/health")).rejects.toBe(boom);
+  it("returns undefined for 204 responses", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(api("/api/requests/1", { method: "DELETE" })).resolves.toBeUndefined();
   });
 });
