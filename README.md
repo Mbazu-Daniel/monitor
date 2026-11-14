@@ -129,7 +129,7 @@ cd ../..
 pnpm dev
 ```
 
-The web app runs at `http://localhost:5173` and the API at `http://localhost:8089/api/v1`.
+The web app runs at `http://localhost:5173` (or the next free port, e.g. `5174`) and the API at `http://localhost:8089/api/v1`. If the web dev server comes up on a port other than `WEB_URL`, add that origin to `WEB_ORIGIN` (comma-separated) — better-auth rejects sign-in/sign-up from untrusted origins with `403 Forbidden`. Example: `WEB_ORIGIN=http://localhost:5174,http://localhost:4173,http://localhost:8089`.
 
 ## Usage
 
@@ -1047,7 +1047,8 @@ Copy `apps/api/.env.example` to `apps/api/.env` and configure the following:
 | --- | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:54443/mivacampus` |
 | `BETTER_AUTH_SECRET` | Secret for session signing | `random-secret-string` |
-| `WEB_URL` | Web origin for CORS | `https://miva.oktopals.com` |
+| `WEB_URL` | Web origin for CORS and auth emails | `https://miva.oktopals.com` |
+| `WEB_ORIGIN` | Extra trusted origins (CORS + better-auth origin check), comma-separated | `http://localhost:5174,http://localhost:8089` |
 | `RESEND_API_KEY` | Resend API key for email | `re_...` |
 | `EMAIL_FROM` | Sender email address | `noreply@miva.oktopals.com` |
 | `R2_ACCOUNT_ID` | Cloudflare R2 account ID | `your-account-id` |
