@@ -146,7 +146,7 @@ function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, o
       <p className="mt-1 text-sm text-muted-foreground">This is the university or campus whose faults you'll be tracking.</p>
       {signedInName ? (
         <p className="mt-3 rounded-xl border border-border bg-secondary/50 p-3 text-[13px] leading-snug text-muted-foreground">
-          You're signed in as <span className="font-medium text-foreground">{signedInName}</span> — the campus is created under this account and you become its first administrator. Invited to an existing campus instead? Open the link from your email.
+          You're signed in as <span className="font-medium text-foreground">{signedInName}</span> — we use the name part of your sign-in email since the account was created without a name. The campus is created under this account and you become its first administrator. Invited to an existing campus instead? Open the link from your email.
         </p>
       ) : null}
       <div className="mt-5 space-y-1.5">
@@ -157,15 +157,15 @@ function CampusStep({ form, subdomain, code, errors, onSet, onSubdomainChange, o
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="ob-subdomain">Subdomain</Label>
-          <Input id="ob-subdomain" placeholder="e.g. example-university" value={subdomain} onChange={(e) => onSubdomainChange(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" />
+          <Input id="ob-subdomain" placeholder="e.g. example-university" value={subdomain} onChange={(e) => onSubdomainChange(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="font-mono" aria-describedby="ob-subdomain-hint" />
           {errors.subdomain && <p className="text-xs text-destructive">{errors.subdomain}</p>}
-          <p className="text-[11px] text-muted-foreground">The campus address label.</p>
+          <p id="ob-subdomain-hint" className="text-[11px] text-muted-foreground">The campus link: <span className="font-mono">/{subdomain || "example-university"}</span> — lowercase letters, numbers and dashes only.</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ob-code">Campus code</Label>
           <Input id="ob-code" placeholder="e.g. EU" value={code} onChange={(e) => onCodeChange(e.target.value)} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={10} className="font-mono uppercase" />
           {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
-          <p className="text-[11px] text-muted-foreground">Staff and student numbers start with the code — e.g. {code || "MOU"}/0001.</p>
+          <p className="text-[11px] text-muted-foreground">Letters and numbers only, up to 10 characters. Staff and student numbers start with the code — e.g. {code || "EU"}/0001.</p>
         </div>
       </div>
     </div>
