@@ -11,6 +11,15 @@ import { getConfig } from "./common/config/env.ts";
 import { logger } from "./common/logger.ts";
 import { PinoNestLogger } from "./common/pino-nest-logger.ts";
 
+type SoonwhyCapture = {
+  captureLog?: (input: {
+    level?: "trace" | "debug" | "info" | "warn" | "error" | "fatal";
+    message: string;
+    attributes?: Record<string, string | number | boolean | null>;
+  }) => void;
+};
+const soonwhy = (globalThis as { __soonwhySdk?: SoonwhyCapture }).__soonwhySdk;
+
 async function bootstrap() {
   const nestLogger = new PinoNestLogger(logger);
   Logger.overrideLogger(nestLogger);
@@ -48,6 +57,32 @@ async function bootstrap() {
         !(typeof req.url === "string" && req.url.includes("/realtime/stream")) && compression.filter(req, res),
     }),
   );
+  app.use((
+    req: { method?: string; originalUrl?: string; url?: string },
+    res: { statusCode: number; on?: (event: string, callback: () => void) => unknown },
+    next: () => void,
+  ) => {
+    const started = process.hrtime.bigint();
+    res.on?.("finish", () => {
+      if (req.url === "/api/v1/health") return;
+      try {
+        soonwhy?.captureLog?.({
+          level: res.statusCode >= 500 ? "error" : "info",
+          message: `${req.method} ${req.originalUrl} ${res.statusCode}`,
+          attributes: {
+            "http.method": req.method ?? "",
+            "http.route": req.originalUrl ?? "",
+            "http.status_code": res.statusCode,
+            "http.duration_ms": Number(process.hrtime.bigint() - started) / 1e6,
+            component: "http",
+          },
+        });
+      } catch {
+        return;
+      }
+    });
+    next();
+  });
   app.use(
     morgan(":method :url :status :res[content-length] - :response-time ms", {
       stream: {
