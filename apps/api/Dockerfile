@@ -48,4 +48,4 @@ WORKDIR /app/apps/api
 USER node
 # Apply committed migrations on boot, then start the app. The baseline
 # migration is marked applied in the dev database; fresh databases replay it.
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node --import ./scripts/instrument.mjs dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/main.js"]
