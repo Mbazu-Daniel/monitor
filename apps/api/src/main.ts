@@ -10,12 +10,15 @@ import { AppModule } from "./app.module.ts";
 import { getConfig } from "./common/config/env.ts";
 import { logger } from "./common/logger.ts";
 import { PinoNestLogger } from "./common/pino-nest-logger.ts";
+import { activeTraceContext } from "./common/trace-context.ts";
 
 type SoonwhyCapture = {
   captureLog?: (input: {
     level?: "trace" | "debug" | "info" | "warn" | "error" | "fatal";
     message: string;
     attributes?: Record<string, string | number | boolean | null>;
+    traceId?: string;
+    spanId?: string;
   }) => void;
 };
 const soonwhy = (globalThis as { __soonwhySdk?: SoonwhyCapture }).__soonwhySdk;
@@ -63,6 +66,7 @@ async function bootstrap() {
     next: () => void,
   ) => {
     const started = process.hrtime.bigint();
+    const traceContext = activeTraceContext();
     res.on?.("finish", () => {
       if (req.url === "/api/v1/health") return;
       try {
@@ -76,6 +80,7 @@ async function bootstrap() {
             "http.duration_ms": Number(process.hrtime.bigint() - started) / 1e6,
             component: "http",
           },
+          ...traceContext,
         });
       } catch {
         return;
