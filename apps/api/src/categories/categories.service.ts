@@ -2,6 +2,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from "@nestj
 import { PRISMA } from "../common/constants/prisma-token.ts";
 import type { PrismaClient } from "../generated/prisma/client.ts";
 import { AuditSink } from "../common/audit/audit.ts";
+import { isForeignKeyViolation } from "../common/db-errors.ts";
 import type { TenantContext } from "../common/guards/session.types.ts";
 import type { CategoryDto } from "./categories.dto.ts";
 
@@ -80,7 +81,14 @@ export class CategoriesService {
       throw new ConflictException(`Cannot delete "${category.name}": ${total} request(s) use it.`);
     }
 
-    await this.db.category.delete({ where: { id } });
+    try {
+      await this.db.category.delete({ where: { id } });
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new ConflictException(`Cannot delete "${category.name}": it is used by request(s).`);
+      }
+      throw error;
+    }
     await this.auditSink.platform({ userId: user.id, memberId: tenant?.memberId ?? null, action: "CATEGORY_DELETED", entityType: "CATEGORY", entityId: id, details: `${user.name} deleted category "${category.name}"`, organizationId });
     return { success: true };
   }

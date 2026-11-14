@@ -22,7 +22,7 @@ export interface AuditInput {
 function toRow({ userId, memberId, action, entityType, entityId, details, organizationId, scope }: AuditInput): Prisma.AuditLogUncheckedCreateInput | null {
   const resolvedScope: AuditScope = scope ?? (organizationId ? "ORGANIZATION" : "PLATFORM");
   if (resolvedScope === "ORGANIZATION" && !organizationId) {
-    logger.error({ action, entityId }, "[AUDIT_DROPPED] organization-scope audit entry is missing organizationId");
+    logger.error({ action, entityId }, "[METRIC] audit_dropped_missing_org");
     return null;
   }
   return {
@@ -43,7 +43,7 @@ export async function persistQuietly(input: AuditInput): Promise<void> {
   try {
     await prisma.auditLog.create({ data });
   } catch (e) {
-    logger.error({ err: e, action: input.action, entityId: input.entityId }, "[AUDIT_FAILED]");
+    logger.error({ err: e, action: input.action, entityId: input.entityId }, "[METRIC] audit_write_failed");
   }
 }
 

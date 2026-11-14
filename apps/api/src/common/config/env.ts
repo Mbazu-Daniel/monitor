@@ -15,6 +15,9 @@ const schema = z.object({
     z.string().optional(),
   ),
   EMAIL_FROM: z.string().default("MivaCampus <onboarding@resend.dev>"),
+  SOONWHY_API_KEY: z.string().min(1).optional(),
+  SOONWHY_ENDPOINT: z.string().optional(),
+  SWAGGER_ENABLED: z.enum(["true", "false"]).optional(),
 });
 
 export type AppConfig = z.infer<typeof schema> & {

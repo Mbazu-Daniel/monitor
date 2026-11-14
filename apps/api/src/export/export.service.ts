@@ -6,6 +6,8 @@ import type { TenantContext } from "../common/guards/session.types.ts";
 import { TenantScope } from "../common/tenancy/tenant-scope.ts";
 import type { ListQuery } from "../common/dto/list-query.dto.ts";
 
+export const MAX_EXPORT_ROWS = 10_000;
+
 @Injectable()
 export class ExportService {
   constructor(@Inject(PRISMA) private readonly db: PrismaClient) {}
@@ -23,7 +25,7 @@ export class ExportService {
     if (query.categoryId) and.push({ categoryId: query.categoryId });
     if (and.length) where.AND = and;
 
-    const requests = await this.db.serviceRequest.findMany({
+    const fetched = await this.db.serviceRequest.findMany({
       where,
       include: {
         category: true,
@@ -34,7 +36,11 @@ export class ExportService {
         },
       },
       orderBy: { createdAt: "desc" },
+      take: MAX_EXPORT_ROWS + 1,
     });
+
+    const truncated = fetched.length > MAX_EXPORT_ROWS;
+    const requests = truncated ? fetched.slice(0, MAX_EXPORT_ROWS) : fetched;
 
     const header = ["Reference", "Title", "Category", "Location", "Priority", "Status", "Submitted By", "Department", "Assigned Officer", "Created", "Last Updated"];
     const rows = requests.map((r) => [
@@ -54,6 +60,6 @@ export class ExportService {
     const csv =
       "\uFEFF" + [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\r\n");
 
-    return { csv, count: requests.length };
+    return { csv, count: requests.length, truncated };
   }
 }

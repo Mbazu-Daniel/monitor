@@ -44,7 +44,7 @@ export const auth = betterAuth({
       verify: verifyPassword,
     },
     sendResetPassword: async ({ user, url }) => {
-      await trySendMail({
+      void trySendMail({
         to: user.email,
         ...resetPasswordEmail({ name: user.name, url }),
       });
@@ -54,7 +54,7 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          await trySendMail({
+          void trySendMail({
             to: user.email,
             ...welcomeEmail({ name: user.name, url: WEB_URL }),
           });

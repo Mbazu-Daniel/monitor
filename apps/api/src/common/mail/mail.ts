@@ -23,6 +23,7 @@ async function sendMail(message: MailMessage): Promise<void> {
       html: message.html,
       text: message.text,
     }),
+    signal: AbortSignal.timeout(8_000),
   });
   if (!response.ok) {
     const body = await response.text().catch(() => "");

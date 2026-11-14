@@ -35,7 +35,7 @@ async function bootstrap() {
   app.flushLogs();
   app.enableShutdownHooks();
 
-  app.useBodyParser("json", { limit: "12mb" });
+  app.useBodyParser("json", { limit: "1mb" });
   app.useBodyParser("urlencoded", { extended: true, limit: "2mb" });
 
   app.use(
@@ -101,16 +101,19 @@ async function bootstrap() {
   app.setGlobalPrefix("api/v1", { exclude: [{ path: "/", method: RequestMethod.GET }] });
   app.useGlobalPipes(new StandardSchemaValidationPipe());
 
-  const document = SwaggerModule.createDocument(
-    app,
-    new DocumentBuilder()
-      .setTitle("MivaCampus API")
-      .setDescription("Campus service request API. Authenticate with the `better-auth.session_token` cookie (sign in at /api/v1/auth/sign-in/email).")
-      .setVersion("1")
-      .addCookieAuth("better-auth.session_token")
-      .build(),
-  );
-  SwaggerModule.setup("api/v1/docs", app, document);
+  const swaggerEnabled = getConfig().NODE_ENV !== "production" || getConfig().SWAGGER_ENABLED === "true";
+  if (swaggerEnabled) {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setTitle("MivaCampus API")
+        .setDescription("Campus service request API. Authenticate with the `better-auth.session_token` cookie (sign in at /api/v1/auth/sign-in/email).")
+        .setVersion("1")
+        .addCookieAuth("better-auth.session_token")
+        .build(),
+    );
+    SwaggerModule.setup("api/v1/docs", app, document);
+  }
 
   const port = getConfig().PORT;
   await app.listen(port);
