@@ -111,6 +111,9 @@ export class AttachmentsService {
     if (!meta) {
       return fail("that file has not been uploaded");
     }
+    if (meta.sizeBytes > MAX_UPLOAD_BYTES) {
+      return fail(`that file is larger than the ${Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)}MB limit`);
+    }
     if (attachment.sizeBytes !== null && meta.sizeBytes !== attachment.sizeBytes) {
       await fail("the uploaded object does not have the declared size");
     }

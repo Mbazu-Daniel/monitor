@@ -12,5 +12,8 @@
       ".dockerignore",
       "railway.json"
     ]
+  },
+  "deploy": {
+    "restartPolicyType": "ON_FAILURE"
   }
 }

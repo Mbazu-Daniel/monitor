@@ -18,6 +18,7 @@ export function parsePagination(query: Record<string, unknown>, defaultPageSize 
 
 export function csvEscape(value: string | number | null | undefined): string {
   const s = value === null || value === undefined ? "" : String(value);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
+  const safe = /^[=+\-@\t]/.test(s) ? `'${s}` : s;
+  if (/[",\n\r]/.test(safe)) return `"${safe.replace(/"/g, '""')}"`;
+  return safe;
 }

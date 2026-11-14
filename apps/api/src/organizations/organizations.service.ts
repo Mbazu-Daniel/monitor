@@ -6,6 +6,7 @@ import { AuditSink } from "../common/audit/audit.ts";
 import { nextStaffNo } from "../common/tenancy/staff-no.ts";
 import { slugify, uniqueSlug } from "../common/tenancy/slug.ts";
 import { uniqueCampusCode } from "../common/tenancy/campus-code.ts";
+import { isUniqueViolation } from "../common/db-errors.ts";
 import type { CreateOrganizationDto, JoinOrganizationDto } from "./organizations.dto.ts";
 
 @Injectable()
@@ -75,16 +76,26 @@ export class OrganizationsService {
         provisioned.push(reusable);
         continue;
       }
-      provisioned.push(
-        await this.db.category.create({
-          data: {
-            name: category.name,
-            description: category.description || null,
-            icon: category.icon || "Wrench",
-            organizationId,
-          },
-        }),
-      );
+      try {
+        provisioned.push(
+          await this.db.category.create({
+            data: {
+              name: category.name,
+              description: category.description || null,
+              icon: category.icon || "Wrench",
+              organizationId,
+            },
+          }),
+        );
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+        const winner = await this.db.category.findFirst({ where: { name: category.name, OR: [{ organizationId: null }, { organizationId }] } });
+        if (winner) {
+          provisioned.push(winner);
+          continue;
+        }
+        throw error;
+      }
     }
     return provisioned;
   }
@@ -101,10 +112,18 @@ export class OrganizationsService {
 
     await this.applyDepartment(userId, dto.department);
 
-    const organization = await auth.api.createOrganization({
-      body: { name: dto.name, slug, code },
-      headers,
-    });
+    let organization;
+    try {
+      organization = await auth.api.createOrganization({
+        body: { name: dto.name, slug, code },
+        headers,
+      });
+    } catch (error) {
+      const membership = await this.db.member.findFirst({ where: { userId }, select: { id: true } });
+      if (membership) throw new ConflictException("You already belong to a campus.");
+      if (isUniqueViolation(error)) throw new ConflictException("That subdomain or campus code was just taken. Try another.");
+      throw error;
+    }
     if (!organization?.id) {
       throw new ConflictException("Unable to create the campus right now. Please try again.");
     }
@@ -131,24 +150,30 @@ export class OrganizationsService {
       return { organization, alreadyMember: true, staffNo: me?.matricNo ?? null };
     }
 
-    const { next: staffNo } = await this.db.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT 1 FROM "organization" WHERE "id" = ${organization.id} FOR UPDATE`;
-      const next = await nextStaffNo(tx, organization.id, organization.code);
-      await tx.user.update({
-        where: { id: userId },
-        data: {
-          department: dto.department || null,
-          phone: dto.phone || null,
-          matricNo: next,
-        },
+    try {
+      const { next: staffNo } = await this.db.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT 1 FROM "organization" WHERE "id" = ${organization.id} FOR UPDATE`;
+        const next = await nextStaffNo(tx, organization.id, organization.code);
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            department: dto.department || null,
+            phone: dto.phone || null,
+            matricNo: next,
+          },
+        });
+        const member = await tx.member.create({
+          data: { organizationId: organization.id, userId, role: "STAFF" },
+        });
+        await this.auditSink.inTx(tx, { userId, memberId: member.id, action: "USER_REGISTERED", entityType: "USER", entityId: userId, details: `STAFF joined ${organization.name} as ${next}`, organizationId: organization.id });
+        return { next, memberId: member.id };
       });
-      const member = await tx.member.create({
-        data: { organizationId: organization.id, userId, role: "STAFF" },
-      });
-      await this.auditSink.inTx(tx, { userId, memberId: member.id, action: "USER_REGISTERED", entityType: "USER", entityId: userId, details: `STAFF joined ${organization.name} as ${next}`, organizationId: organization.id });
-      return { next, memberId: member.id };
-    });
 
-    return { organization, alreadyMember: false, staffNo };
+      return { organization, alreadyMember: false, staffNo };
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const me = await this.db.user.findUnique({ where: { id: userId }, select: { matricNo: true } });
+      return { organization, alreadyMember: true, staffNo: me?.matricNo ?? null };
+    }
   }
 }

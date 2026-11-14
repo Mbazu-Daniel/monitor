@@ -1,5 +1,8 @@
 import { prisma } from "../prisma.ts";
 import { hashPassword } from "../auth/password.ts";
+import type { Prisma, PrismaClient } from "../../generated/prisma/client.ts";
+
+export type Db = PrismaClient | Prisma.TransactionClient;
 
 
 export async function createCredentialUser(input: {
@@ -10,11 +13,11 @@ export async function createCredentialUser(input: {
   phone?: string | null;
   matricNo?: string | null;
   isActive?: boolean;
-}) {
+}, db: Db = prisma) {
   const email = input.email.trim().toLowerCase();
   const passwordHash = await hashPassword(input.password);
 
-  const user = await prisma.user.create({
+  const user = await db.user.create({
     data: {
       name: input.name.trim(),
       email,
@@ -26,8 +29,8 @@ export async function createCredentialUser(input: {
     },
   });
 
-  
-  await prisma.account.create({
+
+  await db.account.create({
     data: {
       accountId: user.id,
       providerId: "credential",
@@ -40,6 +43,6 @@ export async function createCredentialUser(input: {
 }
 
 
-export async function revokeSessions(userId: string) {
-  await prisma.session.deleteMany({ where: { userId } });
+export async function revokeSessions(userId: string, db: Db = prisma) {
+  await db.session.deleteMany({ where: { userId } });
 }

@@ -62,29 +62,30 @@ export class RequestMutationsService {
         userId: user.id, memberId, action: "REQUEST_CREATED", entityType: "REQUEST", entityId: created.id,
         details: `${user.name} submitted ${reference} (${category.name})`, organizationId,
       });
+      await this.notifications.announce(
+        {
+          title: `New ${dto.priority === "URGENT" ? "URGENT " : ""}request ${reference}`,
+          message: `${user.name} reported "${dto.title}" at ${dto.location}.`,
+          type: dto.priority === "URGENT" ? "WARNING" : "INFO",
+          requestId: created.id,
+          organizationId,
+        },
+        { orgAdmins: true },
+        tx,
+      );
+      await this.notifications.announce(
+        {
+          title: `Request ${reference} submitted`,
+          message: "We have received your request. You will be notified when it is assigned and worked on.",
+          type: "SUCCESS",
+          requestId: created.id,
+          organizationId,
+        },
+        { userIds: [user.id] },
+        tx,
+      );
       return created;
     });
-
-    await this.notifications.announce(
-      {
-        title: `New ${dto.priority === "URGENT" ? "URGENT " : ""}request ${request.reference}`,
-        message: `${user.name} reported "${dto.title}" at ${dto.location}.`,
-        type: dto.priority === "URGENT" ? "WARNING" : "INFO",
-        requestId: request.id,
-        organizationId,
-      },
-      { orgAdmins: true },
-    );
-    await this.notifications.announce(
-      {
-        title: `Request ${request.reference} submitted`,
-        message: "We have received your request. You will be notified when it is assigned and worked on.",
-        type: "SUCCESS",
-        requestId: request.id,
-        organizationId,
-      },
-      { userIds: [user.id] },
-    );
 
     this.realtime.emit({
       type: "REQUEST_CREATED",
@@ -145,7 +146,6 @@ export class RequestMutationsService {
       throw new ForbiddenException("You can only delete your own request while it is still OPEN.");
     }
 
-    await this.attachmentsService.deleteObjectsForRequest(id);
     await this.db.$transaction(async (tx) => {
       await tx.serviceRequest.delete({ where: { id } });
       await this.auditSink.inTx(tx, {
@@ -153,6 +153,7 @@ export class RequestMutationsService {
         details: `${user.name} deleted ${request.reference}`, organizationId,
       });
     });
+    await this.attachmentsService.deleteObjectsForRequest(id);
     return { success: true };
   }
 }

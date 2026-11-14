@@ -31,6 +31,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8089
 EXPOSE 8089
+# Process-level liveness only. For routing decisions use /api/v1/health/ready.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:${PORT}/api/v1/health || exit 1
 

@@ -20,13 +20,18 @@ export interface Mocks {
   attachments: { presign: Mock; deleteObjectsForRequest: Mock };
 }
 
+const memberFindUnique = vi.fn(async ({ where }: any): Promise<any> => ({ userId: `user-for-${where.id}` }));
+
 export function makeMocks(): Mocks {
   const tx = {
+    $queryRaw: vi.fn(async (): Promise<any> => [{ id: "req-1", status: "OPEN" }]),
+    $executeRaw: vi.fn(async () => 1),
     organization: { update: vi.fn(async () => ({ nextRequestSeq: 2 })) },
     serviceRequest: {
       create: vi.fn(async ({ data }: any) => ({ id: "req-1", ...data, category: { name: "Electrical" } })),
       update: vi.fn(async ({ where, data }: any) => ({ id: where.id, ...data })),
       delete: vi.fn(async () => ({})),
+      updateMany: vi.fn(async () => ({ count: 1 })),
     },
     statusLog: { create: vi.fn(async () => ({})) },
     assignment: {
@@ -40,9 +45,22 @@ export function makeMocks(): Mocks {
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     auditLog: { create: vi.fn(async () => ({})) },
+    member: {
+      findUnique: memberFindUnique,
+    },
+    comment: {
+      create: vi.fn(async ({ data }: any) => ({
+        id: "com-1",
+        ...data,
+        createdAt: new Date(),
+        member: { role: "STUDENT", user: { id: "user-for-member-student", name: "Chidi" } },
+      })),
+    },
   };
   const db = {
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
+    $queryRaw: vi.fn(async (): Promise<any> => [{ id: "req-1", status: "OPEN" }]),
+    $executeRaw: vi.fn(async () => 1),
     serviceRequest: {
       ...tx.serviceRequest,
       count: vi.fn(async () => 4),
@@ -59,7 +77,7 @@ export function makeMocks(): Mocks {
       findUnique: vi.fn(async () => ({ id: "cat-1", name: "Electrical", organizationId: null })),
     },
     member: {
-      findUnique: vi.fn(async ({ where }: any) => ({ userId: `user-for-${where.id}` })),
+      findUnique: memberFindUnique,
       findFirst: vi.fn(async (): Promise<any> => ({
         id: "member-officer",
         user: { id: "user-officer", name: "Officer Ada", email: "ada@example.com", phone: null, department: "Maintenance", isActive: true },

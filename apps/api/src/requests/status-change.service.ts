@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
 } from "@nestjs/common";
-import type { PrismaClient } from "../generated/prisma/client.ts";
+import type { PrismaClient, Prisma } from "../generated/prisma/client.ts";
 import { PRISMA } from "../common/constants/prisma-token.ts";
 import { AuditSink } from "../common/audit/audit.ts";
 import { NotificationAnnouncer } from "../notifications/notification-announcer.ts";
@@ -25,6 +26,7 @@ export class StatusChangeService {
   ) {}
 
   private async fanoutStatusChange(
+    tx: Prisma.TransactionClient,
     user: { id: string; name: string },
     request: { reference: string; title: string; creatorId: string; assignments: { officerId: string }[] },
     id: string,
@@ -45,18 +47,19 @@ export class StatusChangeService {
           ...base,
         },
         { orgAdmins: true },
+        tx,
       );
     }
     const announcement = statusAnnouncement(request.reference, from, to, note);
     if (request.creatorId !== memberId) {
-      const creatorUserId = await memberUserId(this.db, request.creatorId);
+      const creatorUserId = await memberUserId(tx, request.creatorId);
       if (creatorUserId) {
-        await this.notifications.announce({ ...announcement, ...base }, { userIds: [creatorUserId] });
+        await this.notifications.announce({ ...announcement, ...base }, { userIds: [creatorUserId] }, tx);
       }
     }
     const activeOfficer = request.assignments[0]?.officerId;
     if (activeOfficer && activeOfficer !== memberId) {
-      const officerUserId = await memberUserId(this.db, activeOfficer);
+      const officerUserId = await memberUserId(tx, activeOfficer);
       if (officerUserId) {
         await this.notifications.announce(
           {
@@ -66,23 +69,15 @@ export class StatusChangeService {
             ...base,
           },
           { userIds: [officerUserId] },
+          tx,
         );
       }
     }
     await this.notifications.announce(
       { title: announcement.title, message: announcement.message, type: "STATUS", ...base },
       { userIds: [user.id] },
+      tx,
     );
-    this.realtime.emit({
-      type: "REQUEST_STATUS_CHANGED",
-      organizationId,
-      requestId: id,
-      reference: request.reference,
-      title: request.title,
-      actorId: user.id,
-      actorName: user.name,
-      detail: `${from} → ${to}`,
-    });
   }
 
   async changeStatus(user: { id: string; name: string }, id: string, dto: StatusUpdateDto, tenant: TenantContext | undefined) {
@@ -103,7 +98,10 @@ export class StatusChangeService {
     if (permissionDenied) throw new ForbiddenException(permissionDenied);
 
     const updated = await this.db.$transaction(async (tx) => {
-      const reqUpdated = await tx.serviceRequest.update({ where: { id }, data: { status: to } });
+      const touched = await tx.serviceRequest.updateMany({ where: { id, status: from }, data: { status: to } });
+      if (touched.count === 0) {
+        throw new ConflictException("This request changed while you were working on it. Reload it and try again.");
+      }
       await tx.statusLog.create({
         data: { requestId: id, memberId, fromStatus: from, toStatus: to, note: dto.note || null },
       });
@@ -111,10 +109,21 @@ export class StatusChangeService {
         userId: user.id, memberId, action: "REQUEST_STATUS_CHANGED", entityType: "REQUEST", entityId: id,
         details: `${user.name} set ${request.reference}: ${from} → ${to}`, organizationId,
       });
-      return reqUpdated;
+      await this.fanoutStatusChange(tx, user, request, id, from, to, dto.note, memberId, organizationId, tenant?.role);
+      const { assignments: _assignments, ...base } = request;
+      return { ...base, status: to, updatedAt: new Date() };
     });
 
-    await this.fanoutStatusChange(user, request, id, from, to, dto.note, memberId, organizationId, tenant?.role);
+    this.realtime.emit({
+      type: "REQUEST_STATUS_CHANGED",
+      organizationId,
+      requestId: id,
+      reference: request.reference,
+      title: request.title,
+      actorId: user.id,
+      actorName: user.name,
+      detail: `${from} → ${to}`,
+    });
 
     return { request: updated };
   }

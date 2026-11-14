@@ -47,8 +47,13 @@ const createdUser = {
 
 function makeFakes() {
   const tx = {
-    member: { create: vi.fn(async () => ({})) },
-    user: { update: vi.fn(async () => ({})) },
+    member: {
+      create: vi.fn(async () => ({})),
+      count: vi.fn(async () => 2),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    user: { update: vi.fn(async ({ data }: any) => ({ ...targetUser, ...data })) },
+    account: { updateMany: vi.fn(async () => ({ count: 1 })) },
     auditLog: { create: vi.fn(async () => ({})) },
     $executeRaw: vi.fn(async () => 1),
   };
@@ -83,48 +88,59 @@ beforeEach(() => {
 
 describe("update", () => {
   it("applies profile changes and audits them", async () => {
-    const { service, db, auditSink } = makeFakes();
+    const { service, tx, auditSink } = makeFakes();
     const result = await service.update("user-1", { name: "Ada S", department: "Computer Science" }, actor, admin);
-    expect(db.user.update).toHaveBeenCalledWith({
+    expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: { name: "Ada S", department: "Computer Science" },
     });
-    expect(auditSink.platform).toHaveBeenCalledWith(
+    expect(auditSink.inTx).toHaveBeenCalledWith(
+      tx,
       expect.objectContaining({ action: "USER_UPDATED", entityId: "user-1", organizationId: "org-1" }),
     );
     expect(result.user.name).toBe("Ada S");
   });
 
   it("forbids staff from granting non-student roles", async () => {
-    const { service, db } = makeFakes();
+    const { service, tx } = makeFakes();
     await expect(service.update("user-1", { role: "ADMIN" }, actor, staff)).rejects.toThrow(ForbiddenException);
-    expect(db.user.update).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
   it("forbids users from demoting themselves", async () => {
-    const { service, db } = makeFakes();
+    const { service, tx, db } = makeFakes();
     db.user.findUnique.mockResolvedValueOnce({ ...targetUser, id: actor.id, memberships: [{ id: "member-admin", role: "ADMIN" }] });
     await expect(service.update(actor.id, { role: "STUDENT" }, actor, admin)).rejects.toThrow(ForbiddenException);
-    expect(db.user.update).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
   it("refuses to demote the only administrator", async () => {
-    const { service, db } = makeFakes();
+    const { service, tx, db } = makeFakes();
     db.user.findUnique.mockResolvedValueOnce({ ...targetUser, memberships: [{ id: "member-admin", role: "ADMIN" }] });
-    db.member.count.mockResolvedValueOnce(1);
+    tx.member.count.mockResolvedValueOnce(1);
     await expect(service.update("user-1", { role: "STAFF" }, actor, admin)).rejects.toThrow(ConflictException);
-    expect(db.user.update).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it("counts only active administrators when guarding the last one", async () => {
+    const { service, tx, db } = makeFakes();
+    db.user.findUnique.mockResolvedValueOnce({ ...targetUser, memberships: [{ id: "member-admin", role: "ADMIN" }] });
+    await service.update("user-1", { role: "STAFF" }, actor, admin);
+    expect(tx.member.count).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ role: "ADMIN", user: { isActive: true } }) }),
+    );
   });
 
   it("hashes the new password and revokes sessions", async () => {
-    const { service, db, auditSink } = makeFakes();
+    const { service, tx, auditSink } = makeFakes();
     await service.update("user-1", { password: "newsecret1" }, actor, admin);
-    expect(db.account.updateMany).toHaveBeenCalledWith({
+    expect(tx.account.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1", providerId: "credential" },
       data: { password: "hashed-password" },
     });
     expect(revokeSessions).toHaveBeenCalledWith("user-1");
-    expect(auditSink.platform).toHaveBeenCalledWith(
+    expect(auditSink.inTx).toHaveBeenCalledWith(
+      tx,
       expect.objectContaining({ action: "USER_UPDATED", details: expect.stringContaining("password reset") }),
     );
   });
@@ -136,10 +152,10 @@ describe("update", () => {
   });
 
   it("applies a role change to the campus membership", async () => {
-    const { service, db } = makeFakes();
+    const { service, tx, db } = makeFakes();
     db.user.findUnique.mockResolvedValueOnce({ ...targetUser, memberships: [{ id: "member-x", role: "STUDENT" }] });
     await service.update("user-1", { role: "STAFF" }, actor, admin);
-    expect(db.member.updateMany).toHaveBeenCalledWith({
+    expect(tx.member.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1", organizationId: "org-1" },
       data: { role: "STAFF" },
     });

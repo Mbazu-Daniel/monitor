@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { PrismaClient } from "../src/generated/prisma/client.ts";
 import { StatusChangeService } from "../src/requests/status-change.service.ts";
 import { AuditSink } from "../src/common/audit/audit.ts";
@@ -56,5 +56,14 @@ describe("changeStatus", () => {
     await expect(
       service.changeStatus({ id: "user-admin", name: "Admin Ann" }, "req-1", { status: "IN_PROGRESS" } as never, admin),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it("returns 409 when the status changed underneath us", async () => {
+    const { service, tx } = makeFakes();
+    tx.serviceRequest.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(
+      service.changeStatus({ id: "user-admin", name: "Admin Ann" }, "req-1", { status: "IN_PROGRESS" } as never, admin),
+    ).rejects.toThrow(ConflictException);
+    expect(tx.statusLog.create).not.toHaveBeenCalled();
   });
 });

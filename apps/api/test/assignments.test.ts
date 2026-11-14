@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import type { PrismaClient } from "../src/generated/prisma/client.ts";
 import { AssignmentsService } from "../src/requests/assignments.service.ts";
 import { AuditSink } from "../src/common/audit/audit.ts";
@@ -43,6 +43,13 @@ describe("assign", () => {
     db.member.findFirst.mockResolvedValueOnce(null);
     await expect(service.assign({ id: "user-admin", name: "Admin Ann" }, "req-1", assignDto, admin)).rejects.toThrow(NotFoundException);
   });
+
+  it("refuses when the request is closed inside the transaction (stale pre-check)", async () => {
+    const { service, tx } = makeFakes();
+    tx.$queryRaw.mockResolvedValueOnce([{ id: "req-1", status: "CLOSED" }]);
+    await expect(service.assign({ id: "user-admin", name: "Admin Ann" }, "req-1", assignDto, admin)).rejects.toThrow(BadRequestException);
+    expect(tx.assignment.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("unassign", () => {
@@ -51,7 +58,9 @@ describe("unassign", () => {
     const result = await service.unassign({ id: "user-admin", name: "Admin Ann" }, "req-1", admin);
     expect(result).toEqual({ success: true });
     expect(tx.assignment.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "asg-1" } }));
-    expect(tx.serviceRequest.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "OPEN" } }));
+    expect(tx.serviceRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "req-1", status: { in: ["ASSIGNED", "IN_PROGRESS", "ON_HOLD"] } }, data: { status: "OPEN" } }),
+    );
     expect(realtime.emit).toHaveBeenCalledWith(expect.objectContaining({ type: "REQUEST_UNASSIGNED" }));
   });
 
@@ -59,5 +68,12 @@ describe("unassign", () => {
     const { service, db } = makeFakes();
     db.assignment.findFirst.mockResolvedValueOnce(null);
     await expect(service.unassign({ id: "user-admin", name: "Admin Ann" }, "req-1", admin)).rejects.toThrow(BadRequestException);
+  });
+
+  it("refuses to re-open a resolved request", async () => {
+    const { service, tx } = makeFakes();
+    tx.serviceRequest.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(service.unassign({ id: "user-admin", name: "Admin Ann" }, "req-1", admin)).rejects.toThrow(ConflictException);
+    expect(tx.assignment.update).not.toHaveBeenCalled();
   });
 });

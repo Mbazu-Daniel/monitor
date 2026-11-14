@@ -1056,11 +1056,34 @@ Copy `apps/api/.env.example` to `apps/api/.env` and configure the following:
 | `R2_SECRET_ACCESS_KEY` | R2 secret key | `...` |
 | `R2_BUCKET_NAME` | R2 bucket name | `mivacampus-uploads` |
 | `SOONWHY_API_KEY` | Soonwhy monitoring key | `...` |
+| `SWAGGER_ENABLED` | Set to `true` to expose `/api/v1/docs` in production (always on elsewhere) | `false` |
 | `PORT` | API port | `8089` |
 | `TRUST_PROXY` | Trust proxy headers | `true` |
 | `LOG_LEVEL` | Logging level | `info` |
 
 Object storage is optional. If `R2_*` variables are not set, attachment uploads are disabled and the rest of the app still works.
+
+## Operations
+
+**Health endpoints.** `GET /api/v1/health` is a shallow liveness check (process is up). `GET /api/v1/health/ready` performs `SELECT 1` against the database with a 1.5s bound and returns `503` when the database is unreachable — use it for routing/rollback decisions, keep `/health` for liveness probes.
+
+**Notifications are durable.** Announcing to users (assignment, status change, comment) writes a `notification_outbox` row inside the same transaction as the business change. A background sweeper in the API claims rows every 10 seconds with `FOR UPDATE SKIP LOCKED`, resolves recipients, writes `notification` rows, and marks them published. Crashes between "business commit" and "notification sent" are no longer possible; failed deliveries retry for 10 attempts before being dropped as `[METRIC] notify_dlq`. Watch the following log lines in your drain; they are the alerting surface: `[METRIC] audit_write_failed`, `[METRIC] audit_dropped_missing_org`, `[METRIC] notify_outbox_insert_failed`, `[METRIC] notify_retry`, `[METRIC] notify_dlq`, `[METRIC] notification_sweep_failed`, `[METRIC] idempotency_store_failed`, `[PG_POOL_ERROR]`, `[REALTIME_PG_ERROR]`, `[REALTIME_CONNECT_FAILED]`, `[REALTIME_NOTIFY_FAILED]`.
+
+**Idempotency.** State-changing endpoints honor an `Idempotency-Key` header (any unique string, kept 24h): replaying the same key with the same body returns the stored response with an `Idempotent-Replay: true` header instead of re-executing — including creating duplicate requests. Sending the same key with a different body returns `409`. If absent, requests are processed normally (nothing breaks, but nothing is deduped either).
+
+**Migrations.** The API runs `prisma migrate deploy` at container start (before the server listens). Deploys of multiple replicas serialize on the migration advisory lock; a failed migration fails fast and the container does not start. Keep migrations forward-only and follow expand → migrate → contract for anything destructive.
+
+**Connection pool.** The API uses a `pg.Pool` with `max: 10`, `connectionTimeoutMillis: 3s`, `idleTimeoutMillis: 30s`, `statement_timeout: 15s`, and logging on the pool `error` event — idle-connection errors no longer crash the process. Budget `instances × 10` connections against your `max_connections`.
+
+**Realtime.** Server-Sent Events are broadcast across replicas using PostgreSQL `LISTEN/NOTIFY` on the `campus_events` channel (no external broker needed). Each replica re-publishes events it receives. The stream sends a `ping` heartbeat every 25s so proxies don't idle-timeout the connection.
+
+**Rate limiting.** The built-in throttler is in-memory per instance (300 req/min/IP, 30/min for attachment upload URLs) — with N replicas the effective limit is N× per instance. Front the service with an edge limiter (Railway/Cloudflare) or pin to one replica if strict limits matter.
+
+**Exports.** `GET /api/v1/export/requests` streams at most 10,000 rows and sets `X-Export-Truncated: true` when the limit is hit; CSV cells starting with `=`, `+`, `-`, `@` or tab are prefixed with `'` to neutralize spreadsheet formula injection.
+
+**Concurrency guarantees.** Request status transitions use a conditional `UPDATE … WHERE status = <from>` and return `409` when the request changed under you. Active assignments are guarded by a partial unique index (`assignment_one_active_per_request`, one active assignment per request) plus a row lock inside the transaction. Staff/student numbers (`matricNo`) are unique, as are global category names.
+
+**Swagger.** `/api/v1/docs` is served outside production; in production it is only served when `SWAGGER_ENABLED=true`.
 
 ## Contributing
 

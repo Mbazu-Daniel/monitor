@@ -14,11 +14,12 @@ export class ExportController {
 
   @Get("requests")
   async requests(@Query({ schema: listQuerySchema }) query: ListQuery, @CurrentUser() user: { id: string; name: string }, @CurrentTenant() tenant: TenantContext | undefined, @Res({ passthrough: true }) res: Response) {
-    const { csv, count } = await this.exporter.requestsCsv(query, tenant);
-    await this.auditSink.platform({ userId: user.id, memberId: tenant?.memberId ?? null, action: "DATA_EXPORTED", entityType: "REQUEST", entityId: null, details: `${user.name} exported ${count} request(s) to CSV`, organizationId: tenant?.organizationId ?? null });
+    const { csv, count, truncated } = await this.exporter.requestsCsv(query, tenant);
+    await this.auditSink.platform({ userId: user.id, memberId: tenant?.memberId ?? null, action: "DATA_EXPORTED", entityType: "REQUEST", entityId: null, details: `${user.name} exported ${count} request(s) to CSV${truncated ? " (truncated at the row limit)" : ""}`, organizationId: tenant?.organizationId ?? null });
     const date = new Date().toISOString().slice(0, 10);
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="mivacampus-requests-${date}.csv"`);
+    if (truncated) res.setHeader("X-Export-Truncated", "true");
     return csv;
   }
 }

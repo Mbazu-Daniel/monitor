@@ -10,6 +10,7 @@ import { PRISMA } from "../common/constants/prisma-token.ts";
 import { nextStaffNo } from "../common/tenancy/staff-no.ts";
 import { hashPassword } from "../common/auth/password.ts";
 import { createCredentialUser, revokeSessions } from "../common/auth/create-credential-user.ts";
+import { isUniqueViolation } from "../common/db-errors.ts";
 import { AuditSink } from "../common/audit/audit.ts";
 import type { TenantContext } from "../common/guards/session.types.ts";
 import type { CreateUserDto, UpdateUserDto } from "./users.dto.ts";
@@ -79,26 +80,30 @@ export class UsersService {
 
     const org = organizationId ? await this.db.organization.findUnique({ where: { id: organizationId }, select: { code: true } }) : null;
 
-    const user = await createCredentialUser({
-      name: dto.name,
-      email,
-      password: dto.password,
-      department: dto.department || null,
-      phone: dto.phone || null,
-      matricNo: dto.matricNo || null,
+    let assignedMatricNo: string | null = dto.matricNo || null;
+    const user = await this.db.$transaction(async (tx) => {
+      let created;
+      try {
+        created = await createCredentialUser({
+          name: dto.name,
+          email,
+          password: dto.password,
+          department: dto.department || null,
+          phone: dto.phone || null,
+          matricNo: dto.matricNo || null,
+        }, tx);
+      } catch (error) {
+        if (isUniqueViolation(error)) throw new ConflictException("A user with this email already exists.");
+        throw error;
+      }
+      const auditEntry = { userId: actor.id, memberId: tenant?.memberId ?? null, action: "USER_CREATED" as const, entityType: "USER" as const, entityId: created.id, details: `${actor.name} created ${dto.role} account for ${created.email}`, organizationId };
+      if (organizationId && org) {
+        assignedMatricNo = await this.maybeAssignMatricNo(tx, organizationId, org.code, dto, created.id, assignedMatricNo);
+        await tx.member.create({ data: { organizationId, userId: created.id, role: dto.role } });
+      }
+      await this.auditSink.inTx(tx, auditEntry);
+      return created;
     });
-
-    let assignedMatricNo = user.matricNo;
-    const auditEntry = { userId: actor.id, memberId: tenant?.memberId ?? null, action: "USER_CREATED" as const, entityType: "USER" as const, entityId: user.id, details: `${actor.name} created ${dto.role} account for ${user.email}`, organizationId };
-    if (organizationId && org) {
-      await this.db.$transaction(async (tx) => {
-        assignedMatricNo = await this.maybeAssignMatricNo(tx, organizationId, org.code, dto, user.id, assignedMatricNo);
-        await tx.member.create({ data: { organizationId, userId: user.id, role: dto.role } });
-        await this.auditSink.inTx(tx, auditEntry);
-      });
-    } else {
-      await this.auditSink.platform(auditEntry);
-    }
 
     return {
       user: {
@@ -132,46 +137,43 @@ export class UsersService {
     assertSelfRules(id, actor.id, dto);
   }
 
-  private async assertNotDemotingLastAdmin(organizationId: string | null, target: { memberships: { role: string }[] }, dto: UpdateUserDto) {
-    if (!organizationId) return;
+  private async assertNotDemotingLastAdmin(tx: Prisma.TransactionClient, organizationId: string, target: { memberships: { role: string }[] }, dto: UpdateUserDto) {
     if (!target.memberships.some((m) => m.role === "ADMIN")) return;
     if (!dto.role || dto.role === "ADMIN") return;
-    const admins = await this.db.member.count({ where: { organizationId, role: "ADMIN" } });
+    await tx.$executeRaw`SELECT 1 FROM "organization" WHERE "id" = ${organizationId} FOR UPDATE`;
+    const admins = await tx.member.count({ where: { organizationId, role: "ADMIN", user: { isActive: true } } });
     if (admins <= 1) throw new ConflictException("Cannot demote the only active administrator.");
-  }
-
-  private async applyRoleChange(dto: UpdateUserDto, userId: string, organizationId: string | null) {
-    if (!dto.role) return;
-    if (!organizationId) return;
-    await this.db.member.updateMany({ where: { userId, organizationId }, data: { role: dto.role } });
-  }
-
-  private async applyPasswordReset(dto: UpdateUserDto, userId: string) {
-    if (!dto.password) return;
-    await this.db.account.updateMany({
-      where: { userId, providerId: "credential" },
-      data: { password: await hashPassword(dto.password) },
-    });
-    await revokeSessions(userId);
   }
 
   async update(id: string, dto: UpdateUserDto, actor: { id: string; name: string }, tenant: TenantContext | undefined) {
     const organizationId = tenant?.organizationId ?? null;
     const target = await this.loadTargetForUpdate(id, organizationId);
     this.assertManagementRules(actor, id, dto, target, tenant);
-    await this.assertNotDemotingLastAdmin(organizationId, target, dto);
 
-    const updated = await this.db.user.update({ where: { id }, data: buildUserUpdateData(dto) });
+    const passwordHash = dto.password ? await hashPassword(dto.password) : null;
 
-    await this.applyRoleChange(dto, id, organizationId);
-    await this.applyPasswordReset(dto, id);
+    const updated = await this.db.$transaction(async (tx) => {
+      if (organizationId) {
+        await this.assertNotDemotingLastAdmin(tx, organizationId, target, dto);
+      }
+      const saved = await tx.user.update({ where: { id }, data: buildUserUpdateData(dto) });
+      if (dto.role && organizationId) {
+        await tx.member.updateMany({ where: { userId: id, organizationId }, data: { role: dto.role } });
+      }
+      if (passwordHash) {
+        await tx.account.updateMany({
+          where: { userId: id, providerId: "credential" },
+          data: { password: passwordHash },
+        });
+      }
+      const changes = Object.keys(dto).filter((k) => k !== "password").join(", ");
+      await this.auditSink.inTx(tx, { userId: actor.id, memberId: tenant?.memberId ?? null, action: "USER_UPDATED", entityType: "USER", entityId: id, details: `${actor.name} updated ${target.name} (${changes || "profile"})${dto.password ? " + password reset" : ""}`, organizationId });
+      return saved;
+    });
 
-    if (dto.isActive === false) {
+    if (dto.password || dto.isActive === false) {
       await revokeSessions(id);
     }
-
-    const changes = Object.keys(dto).filter((k) => k !== "password").join(", ");
-    await this.auditSink.platform({ userId: actor.id, memberId: tenant?.memberId ?? null, action: "USER_UPDATED", entityType: "USER", entityId: id, details: `${actor.name} updated ${target.name} (${changes || "profile"})${dto.password ? " + password reset" : ""}`, organizationId });
 
     return {
       user: {
