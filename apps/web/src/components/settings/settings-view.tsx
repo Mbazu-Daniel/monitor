@@ -327,7 +327,7 @@ function OrganizationPanel() {
 
   if (!user) return null;
 
-  const code = user.organizationCode ?? null;
+  const code = user.organizationCode?.toUpperCase() ?? null;
   const subdomain = user.organizationSlug ?? null;
   const isAdmin = user.role === "ADMIN";
 

@@ -530,7 +530,7 @@ export function OnboardingPage() {
       const sessionUser = await api<{ user: SessionUser }>("/api/me");
       setUser(sessionUser.user);
       setAuthChecked(true);
-      setDone({ subdomain: res.slug, code: res.code, orgName: res.name });
+      setDone({ subdomain: res.slug, code: res.code.toUpperCase(), orgName: res.name });
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Unable to create your campus right now.");
     } finally {

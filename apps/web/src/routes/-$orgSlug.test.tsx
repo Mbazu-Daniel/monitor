@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionUser } from "@/types";
 import { useAppStore } from "@/stores/app-store";
-import { OrgGate } from "./$orgSlug";
+import { OrgGate } from "@/components/layout/org-gate";
 import { useFetch } from "@/hooks/use-fetch";
 
 const { api } = vi.hoisted(() => ({ api: vi.fn() }));
@@ -17,7 +17,6 @@ vi.mock("@/lib/use-ensure-session", () => ({ useEnsureSession: vi.fn() }));
 vi.mock("@/components/layout/app-shell", () => ({ AppShell: ({ children }: { children?: ReactNode }) => <>{children}</> }));
 vi.mock("@/components/layout/splash", () => ({ Splash: () => "SPLASH" }));
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => (cfg: object) => ({ ...cfg, useParams: () => ({ orgSlug: "miva" }) }),
   Outlet: () => "OUTLET",
   Navigate: ({ to }: { to: string }) => `NAVIGATE:${to}`,
   useNavigate: () => vi.fn(),
@@ -45,19 +44,19 @@ beforeEach(() => {
 describe("OrgGate", () => {
   it("redirects signed-out visitors home", () => {
     useAppStore.setState({ user: null, authChecked: true });
-    render(<OrgGate />);
+    render(<OrgGate orgSlug="miva" />);
     expect(screen.getByText("NAVIGATE:/")).toBeInTheDocument();
   });
 
   it("renders the app outlet when the user is on their own campus", () => {
     useAppStore.setState({ user: meUser, authChecked: true });
-    render(<OrgGate />);
+    render(<OrgGate orgSlug="miva" />);
     expect(screen.getByText("OUTLET")).toBeInTheDocument();
   });
 
   it("shows the no-campus message for a campus the user does not belong to", () => {
     useAppStore.setState({ user: { ...meUser, organizationSlug: "other" }, authChecked: true });
-    render(<OrgGate />);
+    render(<OrgGate orgSlug="miva" />);
     expect(screen.getByText("No campus at that link")).toBeInTheDocument();
     expect(api).not.toHaveBeenCalled();
   });
@@ -71,7 +70,7 @@ describe("OrgGate", () => {
       refetch: vi.fn(),
     });
     api.mockResolvedValueOnce({}).mockResolvedValueOnce({ user: meUser });
-    render(<OrgGate />);
+    render(<OrgGate orgSlug="miva" />);
     await waitFor(() => {
       expect(api).toHaveBeenCalledWith("/api/auth/organization/set-active", expect.objectContaining({ method: "POST" }));
     });

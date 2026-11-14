@@ -207,8 +207,9 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
     setVerifying(true);
     try {
       const res = await api<{ organization: { name: string; slug: string; code: string } }>(`/api/organizations/resolve?code=${encodeURIComponent(code.trim().toUpperCase())}`);
-      setCampus(res.organization);
-      return res.organization;
+      const organization = { ...res.organization, code: res.organization.code.toUpperCase() };
+      setCampus(organization);
+      return organization;
     } catch {
       setCampus(null);
       return null;
@@ -232,7 +233,7 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
         body: JSON.stringify({ campusCode: valid.code, department: form.department, phone: form.phone }),
       });
       const res = await api<{ user: SessionUser }>("/api/me");
-      toast.success(joined.staffNo ? `Welcome to ${valid.name} (${valid.code}). Your staff no. is ${joined.staffNo}` : `Welcome to ${valid.name}.`);
+      toast.success(joined.staffNo ? `Welcome to ${valid.name} (${valid.code.toUpperCase()}). Your staff no. is ${joined.staffNo.toUpperCase()}` : `Welcome to ${valid.name}.`);
       onAuthed(res.user);
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Unable to join the campus right now.");
@@ -262,8 +263,23 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
           ) : null}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          {campus ? <span className="font-semibold text-foreground">Joining {campus.name} · <span className="tabular-nums">{campus.code}</span> · <span className="font-mono">{campus.slug}</span></span> : (<>Demo: MIVA Open University · MOU · miva-open-university. No campus yet? <button type="button" onClick={() => navigate({ to: "/onboarding" })} className="font-semibold text-[var(--cta)] hover:underline">Set one up</button></>)}
+          {campus ? <span className="font-semibold text-foreground">Campus verified — check the details below before joining.</span> : (<>Demo: MIVA Open University · <span className="uppercase">MOU</span> · miva-open-university. No campus yet? <button type="button" onClick={() => navigate({ to: "/onboarding" })} className="font-semibold text-[var(--cta)] hover:underline">Set one up</button></>)}
         </p>
+        {campus && (
+          <div className="rounded-xl border border-border bg-secondary/50 p-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-campus-name" className="text-[13px] font-medium text-muted-foreground">Campus name</Label>
+                <Input id="reg-campus-name" value={campus.name} disabled readOnly className="h-11 rounded-md border-input bg-card/60 text-foreground" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-campus-subdomain" className="text-[13px] font-medium text-muted-foreground">Subdomain</Label>
+                <Input id="reg-campus-subdomain" value={campus.slug} disabled readOnly className="h-11 rounded-md border-input bg-card/60 font-mono text-foreground" />
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] leading-snug text-muted-foreground">Filled in from the campus records — not editable here. The campus name and code can be updated from the organization settings by the campus admin.</p>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -279,7 +295,7 @@ export function JoinCampusForm({ onAuthed, onBack }: { onAuthed: (user: SessionU
           <Input id="reg-phone" placeholder="0803 000 0000" value={form.phone} onChange={(e) => set("phone", e.target.value)} className="h-11 rounded-md border-input bg-card transition-colors placeholder:text-muted-foreground" />
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">Staff no. is issued automatically: <span className="tabular-nums">{campus ? `${campus.code}/0001` : "CODE/0001"}</span></p>
+      <p className="text-[11px] text-muted-foreground">Staff no. is issued automatically: <span className="tabular-nums uppercase">{campus ? `${campus.code}/0001` : "CODE/0001"}</span></p>
 
       <Button type="submit" className="h-12 w-full text-[16px]" disabled={loading}>
         {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Joining campus…</> : <>Join campus <ArrowRight className="ml-2 h-4 w-4" /></>}
