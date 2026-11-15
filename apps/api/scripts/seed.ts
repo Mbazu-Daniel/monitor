@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { PrismaClient } from "../src/generated/prisma/client.ts";
+import { PrismaClient, type Prisma } from "../src/generated/prisma/client.ts";
 import { createCredentialUser } from "../src/common/auth/create-credential-user.ts";
 import {
   DEMO_USER_CREDENTIALS,
@@ -13,14 +13,19 @@ import {
   type SeedRequest,
 } from "./seed-data.ts";
 
+type Db = PrismaClient | Prisma.TransactionClient;
+
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is required");
 
-const db = new PrismaClient({ adapter: new PrismaPg(new Pool({ connectionString })) });
+const IF_MISSING = process.argv.includes("--if-missing");
+const DEMO_ORG_SLUG = "miva-open-university";
+const DEMO_EMAILS = DEMO_USER_CREDENTIALS.map((u) => u.email.toLowerCase());
+const ADVISORY_LOCK_ID = BigInt(83330002);
 
 const daysAgo = (d: number, h = 0) => new Date(Date.now() - d * 864e5 - h * 36e5);
 
-async function clearExisting() {
+async function clearExisting(db: Db) {
   console.log("Clearing existing data…");
   await db.notification.deleteMany();
   await db.comment.deleteMany();
@@ -37,21 +42,22 @@ async function clearExisting() {
   await db.user.deleteMany();
 }
 
-async function createDemoUsers(): Promise<DemoUsers> {
+async function createDemoUsers(db: Db): Promise<DemoUsers> {
   console.log("Creating users…");
-  const entries = await Promise.all(
-    DEMO_USER_CREDENTIALS.map(async ({ key, ...input }) => [key, await createCredentialUser(input)] as const),
-  );
+  const entries: [string, { id: string }][] = [];
+  for (const { key, ...input } of DEMO_USER_CREDENTIALS) {
+    entries.push([key, await createCredentialUser(input, db)]);
+  }
   return Object.fromEntries(entries) as unknown as DemoUsers;
 }
 
-async function createDemoCampus(users: DemoUsers) {
+async function createDemoCampus(db: Db, users: DemoUsers) {
   const { admin, officer1, officer2, officer3, staff2, staff3, staff, student } = users;
   console.log("Creating demo campus…");
   const demoOrg = await db.organization.create({
     data: {
       name: "MIVA Open University",
-      slug: "miva-open-university",
+      slug: DEMO_ORG_SLUG,
       code: "MOU",
       memberships: {
         create: [
@@ -71,7 +77,7 @@ async function createDemoCampus(users: DemoUsers) {
   return demoOrg;
 }
 
-async function memberMapFor(demoOrgId: string) {
+async function memberMapFor(db: Db, demoOrgId: string) {
   const members = await db.member.findMany({ where: { organizationId: demoOrgId }, select: { id: true, userId: true } });
   const midMap = new Map(members.map((m) => [m.userId, m.id] as const));
   return (userId: string) => midMap.get(userId)!;
@@ -79,7 +85,7 @@ async function memberMapFor(demoOrgId: string) {
 
 type Mid = (userId: string) => string;
 
-async function createCategories() {
+async function createCategories(db: Db) {
   console.log("Creating categories…");
   const cats = await Promise.all(DEMO_CATEGORIES.map((c) => db.category.create({ data: c })));
   const [electrical, plumbing, furniture, internet, classroom, hostel, civil] = cats;
@@ -92,7 +98,7 @@ function actorForStep(stepTo: string, r: SeedRequest, adminMemberId: string) {
   return r.officerId ?? adminMemberId;
 }
 
-async function seedStatusLogs(reqId: string, r: SeedRequest, created: Date, adminMemberId: string) {
+async function seedStatusLogs(db: Db, reqId: string, r: SeedRequest, created: Date, adminMemberId: string) {
   for (let i = 0; i < r.logFlow.length; i++) {
     const step = r.logFlow[i];
     const actorMemberId = actorForStep(step.to, r, adminMemberId);
@@ -106,7 +112,7 @@ async function seedStatusLogs(reqId: string, r: SeedRequest, created: Date, admi
   }
 }
 
-async function seedAssignment(reqId: string, r: SeedRequest, created: Date, adminMemberId: string) {
+async function seedAssignment(db: Db, reqId: string, r: SeedRequest, created: Date, adminMemberId: string) {
   if (!r.officerId) return;
   await db.assignment.create({
     data: {
@@ -118,13 +124,13 @@ async function seedAssignment(reqId: string, r: SeedRequest, created: Date, admi
   await db.serviceRequest.update({ where: { id: reqId }, data: { updatedAt: new Date(created.getTime() + r.logFlow.length * 6 * 36e5) } });
 }
 
-async function seedComments(reqId: string, r: SeedRequest, mid: Mid) {
+async function seedComments(db: Db, reqId: string, r: SeedRequest, mid: Mid) {
   for (const c of r.comments || []) {
     await db.comment.create({ data: { requestId: reqId, memberId: mid(c.userId), body: c.body } });
   }
 }
 
-async function seedOneRequest(r: SeedRequest, reference: string, demoOrgId: string, mid: Mid, adminMemberId: string) {
+async function seedOneRequest(db: Db, r: SeedRequest, reference: string, demoOrgId: string, mid: Mid, adminMemberId: string) {
   const created = daysAgo(r.createdDaysAgo);
   const req = await db.serviceRequest.create({
     data: {
@@ -134,22 +140,22 @@ async function seedOneRequest(r: SeedRequest, reference: string, demoOrgId: stri
       createdAt: created, updatedAt: created,
     },
   });
-  await seedStatusLogs(req.id, r, created, adminMemberId);
-  await seedAssignment(req.id, r, created, adminMemberId);
-  await seedComments(req.id, r, mid);
+  await seedStatusLogs(db, req.id, r, created, adminMemberId);
+  await seedAssignment(db, req.id, r, created, adminMemberId);
+  await seedComments(db, req.id, r, mid);
 }
 
-async function seedRequests(seedReqs: SeedRequest[], demoOrgId: string, mid: Mid, users: DemoUsers) {
+async function seedRequests(db: Db, seedReqs: SeedRequest[], demoOrgId: string, mid: Mid, users: DemoUsers) {
   const adminMemberId = mid(users.admin.id);
   let seq = 1;
   for (const r of seedReqs) {
     const reference = `SR-${seq++}`;
-    await seedOneRequest(r, reference, demoOrgId, mid, adminMemberId);
+    await seedOneRequest(db, r, reference, demoOrgId, mid, adminMemberId);
   }
   return seq;
 }
 
-async function seedNotifications(demoOrgId: string, mid: Mid, users: DemoUsers) {
+async function seedNotifications(db: Db, demoOrgId: string, mid: Mid, users: DemoUsers) {
   console.log("Creating notifications…");
   const notifs = demoNotifications(users);
   for (let i = 0; i < notifs.length; i++) {
@@ -159,7 +165,7 @@ async function seedNotifications(demoOrgId: string, mid: Mid, users: DemoUsers) 
   }
 }
 
-async function seedAuditLogs(demoOrgId: string, mid: Mid, users: DemoUsers) {
+async function seedAuditLogs(db: Db, demoOrgId: string, mid: Mid, users: DemoUsers) {
   console.log("Creating audit logs…");
   const audits = demoAuditLogs(users);
   for (let i = 0; i < audits.length; i++) {
@@ -168,7 +174,29 @@ async function seedAuditLogs(demoOrgId: string, mid: Mid, users: DemoUsers) {
   }
 }
 
-async function printCounts(demoOrgCode: string) {
+async function demoDataExists(db: Db) {
+  const [emailHits, org] = await Promise.all([
+    db.user.count({ where: { email: { in: [...DEMO_EMAILS] } } }),
+    db.organization.findUnique({ where: { slug: DEMO_ORG_SLUG }, select: { id: true } }),
+  ]);
+  return emailHits > 0 || org !== null;
+}
+
+async function seedAll(db: Db) {
+  const users = await createDemoUsers(db);
+  const demoOrg = await createDemoCampus(db, users);
+  const mid = await memberMapFor(db, demoOrg.id);
+  const { cats, electrical, plumbing, furniture, internet, classroom, hostel, civil } = await createCategories(db);
+  const seedReqs = buildDemoRequests({ electrical, plumbing, furniture, internet, classroom, hostel, civil, cleaning: cats[7], mid, users });
+  console.log("Creating service requests…");
+  const seq = await seedRequests(db, seedReqs, demoOrg.id, mid, users);
+  await db.organization.update({ where: { id: demoOrg.id }, data: { nextRequestSeq: seq } });
+  await seedNotifications(db, demoOrg.id, mid, users);
+  await seedAuditLogs(db, demoOrg.id, mid, users);
+  return demoOrg.code;
+}
+
+async function printCounts(db: Db) {
   const counts = {
     users: await db.user.count(),
     categories: await db.category.count(),
@@ -178,27 +206,37 @@ async function printCounts(demoOrgCode: string) {
     comments: await db.comment.count(),
   };
   console.log("Seed complete:", JSON.stringify(counts));
-  console.log(`Demo campus code: ${demoOrgCode}`);
 }
 
 async function main() {
-  await clearExisting();
-  const users = await createDemoUsers();
-  const demoOrg = await createDemoCampus(users);
-  const mid = await memberMapFor(demoOrg.id);
-  const { cats, electrical, plumbing, furniture, internet, classroom, hostel, civil } = await createCategories();
-  const seedReqs = buildDemoRequests({ electrical, plumbing, furniture, internet, classroom, hostel, civil, cleaning: cats[7], mid, users });
-  console.log("Creating service requests…");
-  const seq = await seedRequests(seedReqs, demoOrg.id, mid, users);
-  await db.organization.update({ where: { id: demoOrg.id }, data: { nextRequestSeq: seq } });
-  await seedNotifications(demoOrg.id, mid, users);
-  await seedAuditLogs(demoOrg.id, mid, users);
-  await printCounts(demoOrg.code);
-}
-
-main()
-  .catch((e) => {
+  const db = new PrismaClient({ adapter: new PrismaPg(new Pool({ connectionString })) });
+  try {
+    const code = await db.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${ADVISORY_LOCK_ID})`;
+        if (IF_MISSING) {
+          if (await demoDataExists(tx)) {
+            console.log("Demo data already present (matched demo emails or campus org) — skipping demo seed.");
+            return null;
+          }
+          console.log("No demo data found — seeding demo campus…");
+        } else {
+          await clearExisting(tx);
+        }
+        return seedAll(tx);
+      },
+      { maxWait: 10_000, timeout: 300_000 },
+    );
+    if (code) {
+      await printCounts(db);
+      console.log(`Demo campus code: ${code}`);
+    }
+  } catch (e) {
     console.error(e);
     process.exit(1);
-  })
-  .finally(() => db.$disconnect());
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+main();
