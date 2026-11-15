@@ -8,24 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EmptyState, PageHeader, formatDateTime, ListError, ListLoadingRows, ListPagination } from "@/components/shared";
 import type { AuditLogRow, Paginated } from "@/types";
 import { History, Search, RotateCcw } from "@/components/icons";
+import { AUDIT_ACTION_LABELS } from "@/lib/audit-actions";
+import { auditActionLabel } from "@/lib/audit-action-label";
 
 const ACTION_GROUPS = [
   { value: "all", label: "All actions" },
-  { value: "USER_LOGIN", label: "Sign-ins" },
-  { value: "USER_REGISTERED", label: "Registrations" },
-  { value: "USER_CREATED", label: "User creation" },
-  { value: "USER_UPDATED", label: "User updates" },
-  { value: "REQUEST_CREATED", label: "Request created" },
-  { value: "REQUEST_ASSIGNED", label: "Assignments" },
-  { value: "REQUEST_UNASSIGNED", label: "Unassignments" },
-  { value: "REQUEST_STATUS_CHANGED", label: "Status changes" },
-  { value: "REQUEST_UPDATED", label: "Request edits" },
-  { value: "REQUEST_DELETED", label: "Deletions" },
-  { value: "CATEGORY_CREATED", label: "Category created" },
-  { value: "ORGANIZATION_CREATED", label: "Campus creation" },
-  { value: "ORGANIZATION_UPDATED", label: "Campus updates" },
-  { value: "MEMBER_INVITED", label: "Member invites" },
-  { value: "DATA_EXPORTED", label: "Data exports" },
+  ...Object.entries(AUDIT_ACTION_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 function actionTone(action: string): string {
@@ -41,18 +29,12 @@ function AuditRow({ a }: { a: AuditLogRow }) {
       <td className="whitespace-nowrap px-4 py-2.5 font-medium">{a.user?.name || "System"}</td>
       <td className="px-4 py-2.5">
         <span className={`inline-block whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-semibold ${actionTone(a.action)}`}>
-          {a.action}
+          {auditActionLabel(a.action)}
         </span>
       </td>
-      <td className="hidden px-4 py-2.5 text-xs text-muted-foreground md:table-cell">{a.entityType}{a.entityId ? ` · ${a.entityId.slice(-6)}` : ""}</td>
       <td className="max-w-72 px-4 py-2.5 text-xs text-muted-foreground"><span className="line-clamp-2">{a.details || "…"}</span></td>
     </tr>
   );
-}
-
-function actionLabel(action: string): string {
-  if (!action) return "All actions";
-  return ACTION_GROUPS.find((g) => g.value === action)?.label ?? action;
 }
 
 function AuditLogFilters({ searchInput, searchValue, onSearchInput, action, onActionChange, onReset }: {
@@ -72,7 +54,7 @@ function AuditLogFilters({ searchInput, searchValue, onSearchInput, action, onAc
         </div>
         <div className="flex gap-2">
           <Select value={action || "all"} onValueChange={(v) => onActionChange(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-48" aria-label="Filter by action"><SelectValue>{actionLabel(action)}</SelectValue></SelectTrigger>
+            <SelectTrigger className="w-48" aria-label="Filter by action"><SelectValue>{action ? auditActionLabel(action) : "All actions"}</SelectValue></SelectTrigger>
             <SelectContent>
               {ACTION_GROUPS.map((g) => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
             </SelectContent>
@@ -113,7 +95,6 @@ function AuditLogBody({ error, loading, data, onPage }: {
                 <th className="px-4 py-3 font-medium">Time</th>
                 <th className="px-4 py-3 font-medium">User</th>
                 <th className="px-4 py-3 font-medium">Action</th>
-                <th className="hidden px-4 py-3 font-medium md:table-cell">Entity</th>
                 <th className="px-4 py-3 font-medium">Details</th>
               </tr>
             </thead>

@@ -10,6 +10,7 @@ import {
 } from "@/components/shared";
 import { Folio, FolioSection } from "@/components/shared/folio";
 import { useViewNav } from "@/lib/view-nav";
+import { auditActionLabel } from "@/lib/audit-action-label";
 import type { PersonalStats, OfficerStats, AdminStats, RequestStatus, ServiceRequestRow } from "@/types";
 import {
   FileText, CheckCircle2, PlusCircle, Wrench, Loader2, TrendingUp, FolderOpen, Zap, Kanban,
@@ -315,7 +316,7 @@ function RecentActivitySection({ activity, loading, onOpenAudit }: { activity: A
             <li key={a.id} className="flex items-start gap-3 text-sm">
               <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-foreground/40" />
               <div className="min-w-0 flex-1">
-                <p className="truncate">{a.details || a.action}</p>
+                <p className="truncate">{a.details || auditActionLabel(a.action)}</p>
               </div>
               <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(a.createdAt)}</span>
             </li>
