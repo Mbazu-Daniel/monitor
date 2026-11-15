@@ -46,6 +46,7 @@ prompt
 
 server.log
 *.pdf
+*.docx
 *.db
 *.db.bak*
 .turbo/
