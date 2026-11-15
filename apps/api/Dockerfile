@@ -41,6 +41,8 @@ COPY --from=dependencies /app/packages/contracts/node_modules ./packages/contrac
 COPY --from=builder /app/packages/contracts/dist ./packages/contracts/dist
 COPY packages/contracts/package.json ./packages/contracts/package.json
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+# src is needed by the boot-time demo seed (tsx entry in scripts/seed.ts).
+COPY --from=builder /app/apps/api/src ./apps/api/src
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY apps/api/package.json apps/api/prisma7.config.ts ./apps/api/
 COPY apps/api/scripts ./apps/api/scripts
@@ -49,4 +51,7 @@ WORKDIR /app/apps/api
 USER node
 # Apply committed migrations on boot, then start the app. The baseline
 # migration is marked applied in the dev database; fresh databases replay it.
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/main.js"]
+# With SEED_DEMO_USERS=true, seed the demo campus in between — but only when
+# no demo accounts or campus org exist, inside one transaction. Skipped with a
+# log line otherwise; seed failure never blocks the app from starting.
+CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"$SEED_DEMO_USERS\" = \"true\" ]; then node --import tsx scripts/seed.ts --if-missing || echo \"[DEMO_SEED] seed failed — starting without demo data; see logs above\"; fi && exec node dist/main.js"]

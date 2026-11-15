@@ -1057,6 +1057,7 @@ Copy `apps/api/.env.example` to `apps/api/.env` and configure the following:
 | `R2_BUCKET_NAME` | R2 bucket name | `mivacampus-uploads` |
 | `SOONWHY_API_KEY` | Soonwhy monitoring key | `...` |
 | `SWAGGER_ENABLED` | Set to `true` to expose `/api/v1/docs` in production (always on elsewhere) | `false` |
+| `SEED_DEMO_USERS` | Set to `true` to seed the demo campus on container start when absent (see below) | `false` |
 | `PORT` | API port | `8089` |
 | `TRUST_PROXY` | Trust proxy headers | `true` |
 | `LOG_LEVEL` | Logging level | `info` |
@@ -1072,6 +1073,8 @@ Object storage is optional. If `R2_*` variables are not set, attachment uploads 
 **Idempotency.** State-changing endpoints honor an `Idempotency-Key` header (any unique string, kept 24h): replaying the same key with the same body returns the stored response with an `Idempotent-Replay: true` header instead of re-executing — including creating duplicate requests. Sending the same key with a different body returns `409`. If absent, requests are processed normally (nothing breaks, but nothing is deduped either).
 
 **Migrations.** The API runs `prisma migrate deploy` at container start (before the server listens). Deploys of multiple replicas serialize on the migration advisory lock; a failed migration fails fast and the container does not start. Keep migrations forward-only and follow expand → migrate → contract for anything destructive.
+
+**Demo data on boot.** When `SEED_DEMO_USERS=true`, the container seeds the demo campus (the 8 demo accounts, the "MIVA Open University" organization with memberships, categories, sample requests and notifications) right after migrations. The seed is guarded and idempotent: it takes a PostgreSQL advisory lock, checks for any existing demo accounts or the campus org slug, and skips entirely when they are present — re-deploys never duplicate or overwrite data, and a fresh database is seeded exactly once, in a single transaction. When the accounts already exist you will see `Demo data already present (matched demo emails or campus org) — skipping demo seed.` in the boot logs. A failed seed does not block the app from starting; fix the cause and redeploy (the seed retries on the next boot) or run `pnpm --filter @mivacampus/server db:seed:demo` manually against the affected database. Because the demo passwords are committed to this repository, enable `SEED_DEMO_USERS` only on demo/staging environments, not on installations holding real data.
 
 **Connection pool.** The API uses a `pg.Pool` with `max: 10`, `connectionTimeoutMillis: 3s`, `idleTimeoutMillis: 30s`, `statement_timeout: 15s`, and logging on the pool `error` event — idle-connection errors no longer crash the process. Budget `instances × 10` connections against your `max_connections`.
 

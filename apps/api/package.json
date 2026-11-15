@@ -22,6 +22,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "node --import tsx scripts/seed.ts",
+    "db:seed:demo": "node --import tsx scripts/seed.ts --if-missing",
     "test": "vitest run"
   },
   "dependencies": {
