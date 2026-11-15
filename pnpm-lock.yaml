@@ -212,8 +212,8 @@ importers:
         specifier: ^7.10.1
         version: 7.10.1(prisma@7.10.1(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(typescript@6.0.3)
       '@soonwhy/nest':
-        specifier: ^0.1.0
-        version: 0.1.0(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.4.2)(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)
+        specifier: ^0.1.1
+        version: 0.1.1(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.4.2)(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)
       better-auth:
         specifier: ^1.7.15
         version: 1.7.20(beae1a81c7cd814a27b081749f971f33)
@@ -2609,15 +2609,15 @@ packages:
     resolution: {integrity: sha512-lCA6QG22dPk9ecHbv91jDQZsmtPUjdS1aE2Il6NNPqe7DrYc0dZQi6DhcESk2KYXH2sp5xbAcGdYMZDFnuzA2A==}
     engines: {node: '>=18.0.0'}
 
-  '@soonwhy/nest@0.1.0':
-    resolution: {integrity: sha512-sZyCEpd5ZcnKzIKTm4CokKbsL28KXl6K3w60QHnN2fhs/dSh5YRBx6iOrDm0/2KMf339HAn3jIDqb3HKUJ3S1g==}
+  '@soonwhy/nest@0.1.1':
+    resolution: {integrity: sha512-9ZlxBmudqp6trNcQRBVa1amNiO5q6ajvpsY+Ryqrzl8NCP0wUZL1vaPJHuyzJ8fKs1VnYWlFxHRpwqhpZHEMUw==}
     engines: {node: '>=20.19'}
     peerDependencies:
       '@nestjs/common': ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0 || ^12.0.0
       '@nestjs/core': ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0 || ^12.0.0
 
-  '@soonwhy/node@0.1.0':
-    resolution: {integrity: sha512-cLtvkkwH30KsURuXb7rGT+3wCfz9OkTCTlLwLYRHQVBUNqBcDgvDwRd7OWS50AKBYuMYnnTDWlwOjCtFKrring==}
+  '@soonwhy/node@0.1.1':
+    resolution: {integrity: sha512-yy01WqTgkEXZxcMW4XJDnpPu+hBTpFMwTnHMwvdUccRpPLcjJh9BsmsR0MrMRVqkYEPfDuajAfKBUOibLoLYEA==}
     engines: {node: '>=20.19'}
 
   '@standard-schema/spec@1.1.0':
@@ -7531,25 +7531,24 @@ snapshots:
     dependencies:
       tslib: 2.9.1
 
-  '@soonwhy/nest@0.1.0(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.4.2)(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)':
+  '@soonwhy/nest@0.1.1(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.4.2)(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)':
     dependencies:
       '@nestjs/common': 12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
       '@nestjs/core': 12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/platform-express@12.4.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@soonwhy/node': 0.1.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)
+      '@soonwhy/node': 0.1.1(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)
     transitivePeerDependencies:
-      - '@opentelemetry/api'
       - '@opentelemetry/core'
       - supports-color
 
-  '@soonwhy/node@0.1.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)':
+  '@soonwhy/node@0.1.1(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)':
     dependencies:
+      '@opentelemetry/api': 1.9.1
       '@opentelemetry/auto-instrumentations-node': 0.80.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.12.1(@opentelemetry/api@1.9.1))(supports-color@7.2.0)
       '@opentelemetry/exporter-trace-otlp-proto': 0.222.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources': 2.12.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-node': 0.222.0(@opentelemetry/api@1.9.1)(supports-color@7.2.0)
       '@opentelemetry/sdk-trace-base': 2.12.1(@opentelemetry/api@1.9.1)
     transitivePeerDependencies:
-      - '@opentelemetry/api'
       - '@opentelemetry/core'
       - supports-color
 
