@@ -20,7 +20,6 @@ if (!connectionString) throw new Error("DATABASE_URL is required");
 
 const IF_MISSING = process.argv.includes("--if-missing");
 const DEMO_ORG_SLUG = "miva-open-university";
-const DEMO_EMAILS = DEMO_USER_CREDENTIALS.map((u) => u.email.toLowerCase());
 const ADVISORY_LOCK_ID = BigInt(83330002);
 
 const daysAgo = (d: number, h = 0) => new Date(Date.now() - d * 864e5 - h * 36e5);
@@ -47,6 +46,34 @@ async function createDemoUsers(db: Db): Promise<DemoUsers> {
   const entries: [string, { id: string }][] = [];
   for (const { key, ...input } of DEMO_USER_CREDENTIALS) {
     entries.push([key, await createCredentialUser(input, db)]);
+  }
+  return Object.fromEntries(entries) as unknown as DemoUsers;
+}
+
+const DEMO_ROLES: Record<string, string> = {
+  admin: "ADMIN",
+  officer1: "OFFICER",
+  officer2: "OFFICER",
+  officer3: "OFFICER",
+  staff2: "STAFF",
+  staff3: "STAFF",
+  staff: "STAFF",
+  student: "STUDENT",
+};
+
+async function ensureDemoUsers(db: Db): Promise<DemoUsers> {
+  console.log("Ensuring demo users…");
+  const entries: [string, { id: string }][] = [];
+  for (const { key, ...input } of DEMO_USER_CREDENTIALS) {
+    const email = input.email.trim().toLowerCase();
+    const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
+    if (existing) {
+      console.log(`  exists, left untouched: ${email}`);
+      entries.push([key, existing]);
+    } else {
+      entries.push([key, await createCredentialUser(input, db)]);
+      console.log(`  created: ${email}`);
+    }
   }
   return Object.fromEntries(entries) as unknown as DemoUsers;
 }
@@ -83,6 +110,27 @@ async function memberMapFor(db: Db, demoOrgId: string) {
   return (userId: string) => midMap.get(userId)!;
 }
 
+async function ensureMemberships(db: Db, orgId: string, users: DemoUsers) {
+  for (const [key, role] of Object.entries(DEMO_ROLES)) {
+    const userId = (users as unknown as Record<string, { id: string }>)[key].id;
+    const existing = await db.member.findFirst({ where: { organizationId: orgId, userId }, select: { id: true } });
+    if (!existing) {
+      await db.member.create({ data: { organizationId: orgId, userId, role } });
+      console.log(`  created member: ${key} (${role})`);
+    }
+  }
+}
+
+async function ensureDemoCampus(db: Db, users: DemoUsers) {
+  const existing = await db.organization.findUnique({ where: { slug: DEMO_ORG_SLUG }, select: { id: true, code: true } });
+  if (existing) {
+    console.log(`Demo campus already present (${DEMO_ORG_SLUG}) — reusing; ensuring memberships…`);
+    await ensureMemberships(db, existing.id, users);
+    return existing;
+  }
+  return createDemoCampus(db, users);
+}
+
 type Mid = (userId: string) => string;
 
 async function createCategories(db: Db) {
@@ -90,6 +138,17 @@ async function createCategories(db: Db) {
   const cats = await Promise.all(DEMO_CATEGORIES.map((c) => db.category.create({ data: c })));
   const [electrical, plumbing, furniture, internet, classroom, hostel, civil] = cats;
   return { cats, electrical, plumbing, furniture, internet, classroom, hostel, civil };
+}
+
+async function ensureCategories(db: Db) {
+  console.log("Ensuring demo categories…");
+  const entries = [];
+  for (const c of DEMO_CATEGORIES) {
+    const existing = await db.category.findFirst({ where: { name: c.name }, select: { id: true } });
+    entries.push(existing ?? (await db.category.create({ data: c })));
+  }
+  const [electrical, plumbing, furniture, internet, classroom, hostel, civil] = entries;
+  return { cats: entries, electrical, plumbing, furniture, internet, classroom, hostel, civil };
 }
 
 function actorForStep(stepTo: string, r: SeedRequest, adminMemberId: string) {
@@ -155,6 +214,25 @@ async function seedRequests(db: Db, seedReqs: SeedRequest[], demoOrgId: string, 
   return seq;
 }
 
+async function ensureRequests(db: Db, seedReqs: SeedRequest[], demoOrgId: string, mid: Mid, users: DemoUsers) {
+  const adminMemberId = mid(users.admin.id);
+  const references = seedReqs.map((_, i) => `SR-${i + 1}`);
+  const existingRows = await db.serviceRequest.findMany({ where: { organizationId: demoOrgId, reference: { in: references } }, select: { reference: true } });
+  const have = new Set(existingRows.map((r) => r.reference));
+  for (let i = 0; i < seedReqs.length; i++) {
+    const reference = `SR-${i + 1}`;
+    if (have.has(reference)) {
+      console.log(`  exists, left untouched: ${reference}`);
+      continue;
+    }
+    await seedOneRequest(db, seedReqs[i], reference, demoOrgId, mid, adminMemberId);
+    console.log(`  created: ${reference}`);
+  }
+  const org = await db.organization.findUnique({ where: { id: demoOrgId }, select: { nextRequestSeq: true } });
+  const next = Math.max(org?.nextRequestSeq ?? 1, seedReqs.length + 1);
+  await db.organization.update({ where: { id: demoOrgId }, data: { nextRequestSeq: next } });
+}
+
 async function seedNotifications(db: Db, demoOrgId: string, mid: Mid, users: DemoUsers) {
   console.log("Creating notifications…");
   const notifs = demoNotifications(users);
@@ -174,14 +252,6 @@ async function seedAuditLogs(db: Db, demoOrgId: string, mid: Mid, users: DemoUse
   }
 }
 
-async function demoDataExists(db: Db) {
-  const [emailHits, org] = await Promise.all([
-    db.user.count({ where: { email: { in: [...DEMO_EMAILS] } } }),
-    db.organization.findUnique({ where: { slug: DEMO_ORG_SLUG }, select: { id: true } }),
-  ]);
-  return emailHits > 0 || org !== null;
-}
-
 async function seedAll(db: Db) {
   const users = await createDemoUsers(db);
   const demoOrg = await createDemoCampus(db, users);
@@ -193,6 +263,29 @@ async function seedAll(db: Db) {
   await db.organization.update({ where: { id: demoOrg.id }, data: { nextRequestSeq: seq } });
   await seedNotifications(db, demoOrg.id, mid, users);
   await seedAuditLogs(db, demoOrg.id, mid, users);
+  return demoOrg.code;
+}
+
+async function ensureAll(db: Db) {
+  const users = await ensureDemoUsers(db);
+  const demoOrg = await ensureDemoCampus(db, users);
+  const mid = await memberMapFor(db, demoOrg.id);
+  const { cats, electrical, plumbing, furniture, internet, classroom, hostel, civil } = await ensureCategories(db);
+  const seedReqs = buildDemoRequests({ electrical, plumbing, furniture, internet, classroom, hostel, civil, cleaning: cats[7], mid, users });
+  console.log("Ensuring service requests…");
+  await ensureRequests(db, seedReqs, demoOrg.id, mid, users);
+  const notifCount = await db.notification.count({ where: { organizationId: demoOrg.id } });
+  if (notifCount === 0) {
+    await seedNotifications(db, demoOrg.id, mid, users);
+  } else {
+    console.log(`Notifications already present (${notifCount}) — skipping.`);
+  }
+  const auditCount = await db.auditLog.count({ where: { organizationId: demoOrg.id } });
+  if (auditCount === 0) {
+    await seedAuditLogs(db, demoOrg.id, mid, users);
+  } else {
+    console.log(`Audit logs already present (${auditCount}) — skipping.`);
+  }
   return demoOrg.code;
 }
 
@@ -215,22 +308,16 @@ async function main() {
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${ADVISORY_LOCK_ID})`;
         if (IF_MISSING) {
-          if (await demoDataExists(tx)) {
-            console.log("Demo data already present (matched demo emails or campus org) — skipping demo seed.");
-            return null;
-          }
-          console.log("No demo data found — seeding demo campus…");
-        } else {
-          await clearExisting(tx);
+          console.log("Ensuring demo campus data…");
+          return ensureAll(tx);
         }
+        await clearExisting(tx);
         return seedAll(tx);
       },
       { maxWait: 10_000, timeout: 300_000 },
     );
-    if (code) {
-      await printCounts(db);
-      console.log(`Demo campus code: ${code}`);
-    }
+    await printCounts(db);
+    console.log(`Demo campus code: ${code}`);
   } catch (e) {
     console.error(e);
     process.exit(1);
