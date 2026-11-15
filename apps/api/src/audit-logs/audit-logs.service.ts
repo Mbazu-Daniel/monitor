@@ -12,12 +12,13 @@ export class AuditLogsService {
     const { page, pageSize, skip, take } = parsePagination(query, 10);
     const search = query.search;
     const action = query.action;
+    const actionTerm = search?.trim().replace(/\s+/g, "_");
 
     const and: Prisma.AuditLogWhereInput[] = [{ organizationId }];
     if (search) {
       and.push({
         OR: [
-          { action: { contains: search, mode: "insensitive" } },
+          { action: { contains: actionTerm, mode: "insensitive" } },
           { details: { contains: search, mode: "insensitive" } },
           { user: { name: { contains: search, mode: "insensitive" } } },
           { member: { user: { name: { contains: search, mode: "insensitive" } } } },
