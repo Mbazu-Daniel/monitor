@@ -4,6 +4,7 @@ import { openAPI } from "better-auth/plugins";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { prisma } from "../prisma.ts";
 import { getConfig } from "./env.ts";
+import { CLIENT_IP_HEADERS } from "./client-ip.constants.ts";
 import { hashPassword, verifyPassword } from "../auth/password.ts";
 import { ac, ADMIN, OFFICER, STAFF, STUDENT } from "../auth/access-control.ts";
 import { persistQuietly } from "../audit/audit.ts";
@@ -21,6 +22,7 @@ export const auth = betterAuth({
   trustedOrigins: TRUSTED_ORIGINS,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   advanced: {
+    ipAddress: { ipAddressHeaders: CLIENT_IP_HEADERS },
     database: {
       joins: true,
       generateId: false,
